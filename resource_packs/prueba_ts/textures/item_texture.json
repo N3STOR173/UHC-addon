@@ -1,0 +1,8 @@
+{
+  "resource_pack_name": "UHC Resource Pack",
+  "texture_data": {
+    "uhc:debug_test": {
+      "textures": "textures/items/debug_test"
+    }
+  }
+}
