@@ -7,7 +7,7 @@ M0r1sh1ma4563w
 
 */
 
-import { world, system } from "@minecraft/server";
+import { world, system, GameMode } from "@minecraft/server";
 import { processPlayer } from "./wallLogic";
 import { startRanDomChoosePlayers, startRandomChooseTeams, setPlayers, createFakePlayers, spreadPlayers, startManual } from "./teamsLogic";
 import { startWindow, debugSelectionWindow } from "./teamsWindows";
@@ -54,6 +54,24 @@ function gameTick() {
         setExtraHealthBars(FINALSIZE);
         size = FINALSIZE;
       }
+    }
+
+    //comprobacion de victoria
+    let aux = 0;
+    let ganador;
+    for (let p of players) {
+      if (p.getGameMode() == GameMode.survival) {
+        aux++;
+        ganador = p.nameTag;
+      }
+    }
+    if (aux == 1) {
+      players[0].runCommand("/title @a title ¡" + ganador + " ha ganado!");
+      start = false;
+    }
+    else if (aux == 0) {
+      players[0].runCommand("/title @a title ¡Empate!");
+      start = false;
     }
   }
   system.run(gameTick);
