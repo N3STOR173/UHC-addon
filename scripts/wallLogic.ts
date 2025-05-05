@@ -1,6 +1,6 @@
 import { world, BlockPermutation } from "@minecraft/server";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
-import { SIZE, HEIGHT, STARTHEIGHT, DIST, BUILDDIST, BLOCKTYPE  } from "./main";
+import { size, HEIGHT, STARTHEIGHT, DIST, BUILDDIST, BLOCKTYPE  } from "./main";
 
 //Funcion para construir un muro en los dos ejes
 //===============================================================================================================
@@ -103,24 +103,24 @@ export function processPlayer(p: any){
   let z = Math.floor(location.z);
 
   //se empieza a hacer el muro positivo de x
-  if (x > SIZE - DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, SIZE, z);
+  if (x > size - DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, size, z);
   }
   //se empieza a hacer el muro negativo de x
-  if ( x < -SIZE + DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, -SIZE, z);
+  if ( x < -size + DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, -size, z);
   }
 
   //se empieza a hacer el muro positivo de z
-  if (z > SIZE - DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, SIZE, x);
+  if (z > size - DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, size, x);
   }
   //se empieza a hacer el muro negativo de z
-  if (z < -SIZE + DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, -SIZE, x);
+  if (z < -size + DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, -size, x);
   }
 
   //Se comprueba por si acaso si el jugador esta fuera del muro
-  teleportPlayer(p, x, z, SIZE);
+  teleportPlayer(p, x, z, size);
 
 }

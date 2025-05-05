@@ -1,5 +1,5 @@
 // scripts/main.ts
-import { world as world6, system } from "@minecraft/server";
+import { world as world7, system as system2 } from "@minecraft/server";
 
 // scripts/wallLogic.ts
 import { world, BlockPermutation } from "@minecraft/server";
@@ -2995,14 +2995,14 @@ var MinecraftPotionModifierTypes = ((MinecraftPotionModifierTypes2) => {
 })(MinecraftPotionModifierTypes || {});
 
 // scripts/wallLogic.ts
-function buildWall(size, height, startHight, buildDist, axis, block, stableCord, variableCord) {
+function buildWall(size2, height, startHight, buildDist, axis, block, stableCord, variableCord) {
   const dimension = world.getDimension("overworld");
   let variableMin = variableCord - buildDist;
   let variableMax = variableCord + buildDist;
-  if (variableMin < -size)
-    variableMin = -size;
-  if (variableMax > size)
-    variableMax = size;
+  if (variableMin < -size2)
+    variableMin = -size2;
+  if (variableMax > size2)
+    variableMax = size2;
   if (axis === "X") {
     for (let z = variableMin; z < variableMax + 1; z++) {
       if (dimension.getBlock({ x: stableCord, y: height - 1, z })?.typeId !== block) {
@@ -3021,20 +3021,20 @@ function buildWall(size, height, startHight, buildDist, axis, block, stableCord,
     }
   }
 }
-function teleportPlayer(p, x, z, size) {
+function teleportPlayer(p, x, z, size2) {
   let procede = false;
-  if (x > size - 1) {
-    x = size - 50;
+  if (x > size2 - 1) {
+    x = size2 - 50;
     procede = true;
-  } else if (x < -size + 1) {
-    x = -size + 50;
+  } else if (x < -size2 + 1) {
+    x = -size2 + 50;
     procede = true;
   }
-  if (z > size - 1) {
-    z = size - 50;
+  if (z > size2 - 1) {
+    z = size2 - 50;
     procede = true;
-  } else if (z < -size + 1) {
-    z = -size + 50;
+  } else if (z < -size2 + 1) {
+    z = -size2 + 50;
     procede = true;
   }
   if (procede) {
@@ -3048,19 +3048,19 @@ function processPlayer(p) {
   let location = p.location;
   let x = Math.floor(location.x);
   let z = Math.floor(location.z);
-  if (x > SIZE - DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, SIZE, z);
+  if (x > size - DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, size, z);
   }
-  if (x < -SIZE + DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, -SIZE, z);
+  if (x < -size + DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "X", BLOCKTYPE, -size, z);
   }
-  if (z > SIZE - DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, SIZE, x);
+  if (z > size - DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, size, x);
   }
-  if (z < -SIZE + DIST) {
-    buildWall(SIZE, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, -SIZE, x);
+  if (z < -size + DIST) {
+    buildWall(size, HEIGHT, STARTHEIGHT, BUILDDIST, "Z", BLOCKTYPE, -size, x);
   }
-  teleportPlayer(p, x, z, SIZE);
+  teleportPlayer(p, x, z, size);
 }
 
 // scripts/teamsLogic.ts
@@ -3069,17 +3069,17 @@ var corner = { x: 0, z: 0 };
 var middle = { x: 0, z: 0 };
 var players;
 var teams = [];
-function firstCorner(size) {
+function firstCorner(size2) {
   let random = Math.random() * 10;
   if (random < 5) {
-    corner.x = size - 50;
+    corner.x = size2 - 50;
   } else
-    corner.x = -size + 50;
+    corner.x = -size2 + 50;
   random = Math.random() * 10;
   if (random < 5)
-    corner.z = size - 50;
+    corner.z = size2 - 50;
   else
-    corner.z = -size + 50;
+    corner.z = -size2 + 50;
 }
 function nextCorner() {
   if (corner.x == corner.z)
@@ -3087,15 +3087,15 @@ function nextCorner() {
   else
     corner.x *= -1;
 }
-function firstMiddle(size) {
+function firstMiddle(size2) {
   middle.x = 0;
   middle.z = 0;
   let aux;
   let random = Math.random() * 10;
   if (random < 5)
-    aux = size - 50;
+    aux = size2 - 50;
   else
-    aux = -size + 50;
+    aux = -size2 + 50;
   if (random < 5)
     middle.x = aux;
   else
@@ -3193,10 +3193,10 @@ function makeGroupsRandomChoosePlayers(groupSize) {
     }
   }
 }
-function spreadPlayers(size) {
+function spreadPlayers(size2) {
   let playersSpawnPoint = /* @__PURE__ */ new Map();
-  firstCorner(size);
-  firstMiddle(size);
+  firstCorner(size2);
+  firstMiddle(size2);
   world2.setTimeOfDay(0);
   if (teams.length == 2) {
     for (let p of teams[0])
@@ -3844,70 +3844,92 @@ function teleportPlayer3(player) {
   player.teleport({ x, y: 320, z });
 }
 
+// scripts/timeLogic.ts
+import { system, world as world6 } from "@minecraft/server";
+var start;
+var end;
+function timeMessage() {
+  const currentTime = system.currentTick;
+  const players2 = world6.getAllPlayers();
+  if (currentTime - start == (end - start) / 2) {
+    world6.sendMessage("Quedan " + Math.floor((end - start) / 20 / 2 / 60) + " minutos para el final de la partida");
+    world6.sendMessage("Solo recibir\xE1n 1 barra de vida extra la gente que llegue a tiempo al centro");
+  } else if (currentTime >= end) {
+    for (let p of players2) {
+      world6.sendMessage("Se ha acabado el tiempo");
+    }
+    return true;
+  } else if (currentTime - start >= (end - start) * 3 / 4) {
+    for (let p of players2) {
+      let distx = Math.floor(Math.abs(p.location.x) - 148);
+      let distz = Math.floor(Math.abs(p.location.z) - 148);
+      if (distx > 0 && distz > 0) {
+        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + Math.floor(Math.sqrt(distx * distx + distz * distz)) + " b");
+      } else if (distx > 0) {
+        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia : " + distx + " b");
+      } else if (distz > 0) {
+        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + distz + " b");
+      } else {
+        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Dentro de la zona");
+      }
+    }
+  } else {
+    for (let p of players2) {
+      p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m ");
+    }
+  }
+  return false;
+}
+function setTime(startTime, endTime) {
+  start = startTime;
+  end = endTime;
+}
+
 // scripts/main.ts
-var SIZE = 150;
+var size = 1500;
 var HEIGHT = 200;
 var STARTHEIGHT = -63;
 var DIST = 100;
 var BUILDDIST = 50;
 var BLOCKTYPE = "minecraft:barrier";
 var FRECUENCY = 20;
-var start;
-var end;
-system.run(gameTick);
+var start2 = false;
+var stopMessages = false;
+system2.run(gameTick);
 function gameTick() {
-  const currentTime = system.currentTick;
-  if (currentTime % FRECUENCY === 0) {
-    let players2 = world6.getAllPlayers();
+  if (system2.currentTick % FRECUENCY === 0 && start2) {
+    let players2 = world7.getAllPlayers();
     for (let p of players2) {
       processPlayer(p);
     }
-    if (currentTime - start == (end - start) / 2) {
-      world6.sendMessage("Quedan " + Math.floor((end - start) / 20 / 2 / 60) + " minutos para el final de la partida");
-      world6.sendMessage("Solo recibir\xE1n 1 barra de vida extra la gente que llegue a tiempo al centro");
-    } else if (currentTime - start >= (end - start) * 3 / 4 || true) {
-      for (let p of players2) {
-        let distx = Math.floor(Math.abs(p.location.x) - 148);
-        let distz = Math.floor(Math.abs(p.location.z) - 148);
-        if (distx > 0 && distz > 0) {
-          p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + Math.floor(Math.sqrt(distx * distx + distz * distz)) + " b");
-        } else if (distx > 0) {
-          p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia : " + distx + " b");
-        } else if (distz > 0) {
-          p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + distz + " b");
-        }
-      }
-    } else if (currentTime == end) {
-      for (let p of players2) {
-        p.runCommand("/title @s actionbar \xA7l\xA74 Se ha acabado el tiempo");
-      }
-    } else {
-      for (let p of players2) {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60) + " m ");
+    if (!stopMessages) {
+      stopMessages = timeMessage();
+      if (stopMessages) {
+        size = 150;
       }
     }
   }
-  system.run(gameTick);
+  system2.run(gameTick);
 }
-system.afterEvents.scriptEventReceive.subscribe((event) => {
-  world6.sendMessage("ha llegado el evento " + event.id);
-  world6.sendMessage(" ");
+system2.afterEvents.scriptEventReceive.subscribe((event) => {
+  world7.sendMessage("ha llegado el evento " + event.id);
+  world7.sendMessage(" ");
   let params = event.message.split(" ");
   switch (event.id) {
     case "uhc:initialize":
-      setLives(world6.getAllPlayers()[0], 2);
+      setLives(world7.getAllPlayers()[0], 2);
       break;
   }
 });
-world6.afterEvents.entityDie.subscribe((event) => {
+world7.afterEvents.entityDie.subscribe((event) => {
   if (event.deadEntity.typeId != "minecraft:player")
     return;
   processPlayerDie(event);
 });
-world6.afterEvents.playerSpawn.subscribe((event) => {
+world7.afterEvents.playerSpawn.subscribe((event) => {
   processPlayerSpawn(event);
 });
-world6.afterEvents.itemUse.subscribe((eventData) => {
+world7.afterEvents.itemUse.subscribe((eventData) => {
   const player = eventData.source;
   const item = eventData.itemStack;
   if (item.typeId == "uhc:start") {
@@ -3943,10 +3965,12 @@ function controller(event, params) {
       setPlayers();
       break;
     case "confirm":
-      spawnPoints2 = spreadPlayers(SIZE);
+      spawnPoints2 = spreadPlayers(size);
       initialize(spawnPoints2, params[0]);
-      start = system.currentTick - system.currentTick % 20;
-      end = start + params[1] * 60 * 20;
+      const startTime = system2.currentTick - system2.currentTick % 20;
+      const endTime = startTime + params[1] * 60 * 20;
+      setTime(startTime, endTime);
+      start2 = true;
       break;
   }
 }
@@ -3955,9 +3979,9 @@ export {
   BUILDDIST,
   DIST,
   HEIGHT,
-  SIZE,
   STARTHEIGHT,
   controller,
+  size,
   windowController
 };
 
