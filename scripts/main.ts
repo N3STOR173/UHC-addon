@@ -16,7 +16,7 @@ import { initialize, setLives, processPlayerDie, processPlayerSpawn } from "./ex
 
 //Configuracion del muro:
 //==========================================================================================================================
-export let SIZE = 1500;                             //distancia a la que se hace el muro
+export let SIZE = 150;                             //distancia a la que se hace el muro
 export const HEIGHT = 200;                          //altura del muro (hata la coordenada y que llega)
 export const STARTHEIGHT = -63;                     //altura desde la que empieza a hacer el muro
 export const DIST = 100;                            //distancia a la que tiene que estar el jugador para que se haga el muro

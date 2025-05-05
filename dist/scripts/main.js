@@ -3845,7 +3845,7 @@ function teleportPlayer3(player) {
 }
 
 // scripts/main.ts
-var SIZE = 1500;
+var SIZE = 150;
 var HEIGHT = 200;
 var STARTHEIGHT = -63;
 var DIST = 100;
