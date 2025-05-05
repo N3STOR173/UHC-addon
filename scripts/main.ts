@@ -7,17 +7,18 @@ M0r1sh1ma4563w
 
 */
 
-import { world, system, Player } from "@minecraft/server";
+import { world, system } from "@minecraft/server";
 import { processPlayer } from "./wallLogic";
 import { startRanDomChoosePlayers, startRandomChooseTeams, setPlayers, createFakePlayers, spreadPlayers, startManual } from "./teamsLogic";
 import { startWindow, debugSelectionWindow } from "./teamsWindows";
 import { mainMenu, teamsFormed } from "./mainMenuWindows";
-import { initialize, setLives, processPlayerDie, processPlayerSpawn } from "./extraLivesLogic";
+import { initialize, setLives, processPlayerDie, processPlayerSpawn, setExtraHealthBars } from "./extraLivesLogic";
 import { timeMessage, setTime } from "./timeLogic";
 
 //Configuracion del muro:
 //==========================================================================================================================
-export let size = 1500;                              //distancia a la que se hace el muro
+export let size = 1500;                             //distancia a la que se hace el muro
+const FINALSIZE = 150;                              //distancia a la que se hace el muro al final de la partida
 export const HEIGHT = 200;                          //altura del muro (hata la coordenada y que llega)
 export const STARTHEIGHT = -63;                     //altura desde la que empieza a hacer el muro
 export const DIST = 100;                            //distancia a la que tiene que estar el jugador para que se haga el muro
@@ -48,9 +49,10 @@ function gameTick() {
 
     //mensajes de tiempo
     if (!stopMessages){
-      stopMessages = timeMessage();
+      stopMessages = timeMessage(FINALSIZE);
       if (stopMessages) {
-        size = 150;
+        setExtraHealthBars(FINALSIZE);
+        size = FINALSIZE;
       }
     }
   }

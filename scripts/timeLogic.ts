@@ -3,7 +3,7 @@ import { Player, system, world } from "@minecraft/server";
 let start:number;
 let end:number;
 
-export function timeMessage():boolean {
+export function timeMessage(finalSize:number):boolean {
   const currentTime = system.currentTick;
   const players = world.getAllPlayers();
 
@@ -24,8 +24,8 @@ export function timeMessage():boolean {
   //aviso distancia al centro
   else if (currentTime-start >= (end - start) * 3 / 4) { 
     for (let p of players) {
-      let distx = Math.floor(Math.abs(p.location.x) - 148); 
-      let distz = Math.floor(Math.abs(p.location.z) - 148);
+      let distx = Math.floor(Math.abs(p.location.x) - finalSize-2); 
+      let distz = Math.floor(Math.abs(p.location.z) - finalSize-2);
       
       if (distx > 0 && distz > 0) { //calculo de la diagonal
         p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m "

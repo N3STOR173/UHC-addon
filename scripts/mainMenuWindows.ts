@@ -181,7 +181,7 @@ export function mainMenu(player:Player) {
   else if (phase == 2) {
 
     if (secondTutorialSeen.has(player.nameTag)) {
-      windowController("startWindow", [player]);
+      gameSettingsWindow(player);
     }
 
     else {

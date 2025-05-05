@@ -51,8 +51,24 @@ export function setLives(player:Player, x:number) {
   lives.set(player.nameTag, x);
 }
 
+//se usa para que el jugador entre en el modo espectador en la coordenada donde murio
 export function setFinalSpawn(player:Player, cords:{x:number, y:number, z:number}) {
   finalSpawnPoints.set(player.nameTag, cords);
+}
+
+export function setExtraHealthBars(finalSize:number) {
+  world.getAllPlayers().forEach((player) => {
+    let aux = lives.get(player.nameTag);
+    if (aux != undefined && aux > -1) {
+      if (Math.abs(player.location.x) < finalSize && Math.abs(player.location.z) < finalSize) {
+        player.addEffect(MinecraftEffectTypes.HealthBoost, Infinity, { amplifier: aux * 5 + 5, showParticles: false });
+      }
+      else {
+        player.addEffect(MinecraftEffectTypes.HealthBoost, Infinity, { amplifier: aux * 5, showParticles: false });
+      }
+      lives.set(player.nameTag, 0);
+    }
+  });
 }
 
 //devuelve true si puede revivir y false si no puede
@@ -73,6 +89,7 @@ function revive(player:Player) {
     player.setGameMode(GameMode.spectator);
     world.sendMessage("§4§lEl jugador " + player.nameTag + " ha sido eliminado");
     player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number});
+    lives.set(player.nameTag, lives.get(player.nameTag) as number - 1);
   }
   else {
     if (vidas == 1) {
