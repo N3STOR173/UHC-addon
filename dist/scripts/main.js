@@ -3282,13 +3282,13 @@ function buildBody() {
   if (playersConfirmed.size > 0) {
     body += "\nJugadores confirmados:\n";
     playersConfirmed.forEach((p) => {
-      body += p + "\n";
+      body += "- " + p + "\n";
     });
   }
   if (playersNotConfirmed.size > 0) {
     body += "\nJugadores no confirmados:\n";
     playersNotConfirmed.forEach((p) => {
-      body += p + "\n";
+      body += "- " + p + "\n";
     });
   }
   return body;
@@ -3307,45 +3307,50 @@ function processConfirmSelection(player) {
     world3.sendMessage("\xA72Todos los jugadores han confirmado la configuraci\xF3n de la partida\n\n");
   }
 }
+function processCancelation(player) {
+  seleccionMade = false;
+  manualSelected = false;
+  playersConfirmed.clear();
+  canceled = true;
+  concurrentAux++;
+  world3.sendMessage("\xA74" + player.nameTag + " ha rechazado la configuraci\xF3n de los equipos propueta");
+}
 function confirmationWindow(player) {
   let body = sentence;
   if (playersWithoutTeam.size == 0) {
     body = buildBody();
   }
-  let window = new ActionFormData().title("Confirmaci\xF3n").body(body + "\n").button("Cancelar");
-  if (manualSelected) {
-    window.button("Cambiar de equipo");
-  }
+  let window = new ActionFormData().title("Equipos").body(body + "\n");
   if (playersConfirmed.has(player.nameTag)) {
     window.body(body + "\nYa has confirmado tu selecci\xF3n\n");
-  } else if (playersWithoutTeam.size > 0 && manualSelected) {
-    window.body(body + "\n===============================\n\nNo se puede confirmar a\xFAn, falta alg\xFAn jugador por elegir equipo\n\n");
   } else {
     window.button("Confirmar");
   }
+  if (manualSelected) {
+    window.button("Cambiar de equipo");
+    if (playersWithoutTeam.size > 0) {
+      window.body(body + "\n===============================\n\nNo se puede confirmar a\xFAn, falta alg\xFAn jugador por elegir equipo\n\n");
+    }
+  }
+  window.button("Cancelar");
   const aux = concurrentAux;
   window.show(player).then((response) => {
     if (response.selection === 0) {
       if (checkConcurrence(aux, player))
         return;
-      seleccionMade = false;
-      manualSelected = false;
-      playersConfirmed.clear();
-      canceled = true;
-      concurrentAux++;
-      world3.sendMessage("\xA74" + player.nameTag + " ha rechazado la configuraci\xF3n de los equipos propueta");
+      processConfirmSelection(player);
     } else if (response.selection == 1) {
       if (checkConcurrence(aux, player))
         return;
       if (manualSelected)
         selectTeam(player);
       else {
-        processConfirmSelection(player);
+        processCancelation(player);
       }
     } else if (response.selection == 2) {
       if (checkConcurrence(aux, player))
         return;
-      processConfirmSelection(player);
+      processCancelation(player);
     }
   });
 }
@@ -3388,7 +3393,7 @@ function buildbodyManual() {
   }
 }
 function selectTeam(player) {
-  let window = new ActionFormData().title("Seleci\xF3n de equipo").body(sentence + "\n");
+  let window = new ActionFormData().title("Manual").body(sentence + "\n");
   for (let i = 0; i < teams2.length; i++) {
     window.button("Equipo " + (i + 1).toString());
   }
@@ -3399,7 +3404,9 @@ function selectTeam(player) {
     } else {
       if (checkConcurrence(aux, player))
         return;
-      if (playersTeam.has(player.nameTag) && response.selection != playersTeam.get(player.nameTag)) {
+      if (playersTeam.has(player.nameTag)) {
+        if (response.selection == playersTeam.get(player.nameTag))
+          return;
         world3.sendMessage(player.nameTag + " ha elegido el equipo " + (response.selection + 1).toString());
         teams2[playersTeam.get(player.nameTag)].delete(player);
         playersConfirmed.forEach((p) => {
@@ -3426,7 +3433,7 @@ function selectTeam(player) {
   }
 }
 function manualNumberOfTeams(player, numberOfPlayers) {
-  let window = new ActionFormData().title("Configuraci\xF3n de los equipos").body("\nElige el n\xFAmero de equipos\n\n");
+  let window = new ActionFormData().title("Manual").body("\nElige el n\xFAmero de equipos\n\n");
   for (let i = 0; i < numberOfPlayers; i++) {
     window.button((i + 1).toString());
   }
@@ -3626,8 +3633,11 @@ var lifes;
 var time;
 var playersConfirmed2 = /* @__PURE__ */ new Set();
 var playersNotConfirmed2 = /* @__PURE__ */ new Set();
+var proposer;
 var firstTutorialSeen = /* @__PURE__ */ new Set();
 var secondTutorialSeen = /* @__PURE__ */ new Set();
+var ready = /* @__PURE__ */ new Set();
+var notReady = /* @__PURE__ */ new Set();
 var concurrentAux2 = 0;
 function checkConcurrence2(aux, player) {
   if (aux != concurrentAux2) {
@@ -3637,52 +3647,25 @@ function checkConcurrence2(aux, player) {
     return false;
   }
 }
-function processConfirmSelection2(player) {
-  playersConfirmed2.add(player.nameTag);
-  playersNotConfirmed2.delete(player.nameTag);
-  if (playersNotConfirmed2.size == 0) {
-    world4.sendMessage("\xA72Todos los jugadores han confirmado la configuraci\xF3n de la partida");
-    phase = 3;
-    world4.getAllPlayers().forEach((p) => {
-      controller("confirm", [lifes, time]);
-    });
-  }
-}
-function buildBody2() {
-  let body = "\n===============================\n";
-  if (playersConfirmed2.size > 0) {
-    body += "\nJugadores que han aceptado:\n";
-    playersConfirmed2.forEach((p) => {
-      body += p + "\n";
-    });
-  }
-  if (playersNotConfirmed2.size > 0) {
-    body += "\nJugadores pendientes:\n";
-    playersNotConfirmed2.forEach((p) => {
-      body += p + "\n";
-    });
-  }
-  body += "\n";
-  return body;
-}
 function gameSettingsWindow(player) {
   if (seleccionMade2) {
     const aux = concurrentAux2;
-    const confirm = new ActionFormData2().title("Configuraci\xF3n de la partida").body("\nConfiguraci\xF3n de la partida propuesta por " + player + "\n\ntiempo: " + time + " minutos\nvidas: " + lifes + "\n" + buildBody2()).button("rechazar");
+    const confirm = new ActionFormData2().title("Configuraci\xF3n de la partida").body("\nConfiguraci\xF3n de la partida propuesta por " + proposer + "\n\ntiempo: " + time + " minutos\nvidas: " + lifes + "\n" + buildBody2());
     if (playersNotConfirmed2.has(player.nameTag)) {
-      confirm.button("aceptar");
+      confirm.button("confirmar");
     }
+    confirm.button("cancelar");
     confirm.show(player).then((response) => {
       if (response.selection == 0) {
+        if (checkConcurrence2(aux, player))
+          return;
+        processConfirmSelection2(player);
+      } else if (response.selection == 1) {
         if (checkConcurrence2(aux, player))
           return;
         concurrentAux2++;
         seleccionMade2 = false;
         world4.sendMessage("\xA74" + player.nameTag + " ha rechazado los ajustes propuestos");
-      } else if (response.selection == 1) {
-        if (checkConcurrence2(aux, player))
-          return;
-        processConfirmSelection2(player);
       }
     });
   } else {
@@ -3700,6 +3683,7 @@ function gameSettingsWindow(player) {
           someoneChoosing2 = false;
           if (!isNaN(time) && time > 0) {
             seleccionMade2 = true;
+            proposer = player.nameTag;
             world4.getAllPlayers().forEach((p) => {
               playersNotConfirmed2.add(p.nameTag);
             });
@@ -3719,6 +3703,64 @@ function gameSettingsWindow(player) {
     }
   }
 }
+function processConfirmSelection2(player) {
+  playersConfirmed2.add(player.nameTag);
+  playersNotConfirmed2.delete(player.nameTag);
+  if (playersNotConfirmed2.size == 0) {
+    world4.sendMessage("\xA72Todos los jugadores han confirmado la configuraci\xF3n de la partida");
+    phase = 3;
+    world4.getAllPlayers().forEach((p) => {
+      notReady.add(p.nameTag);
+    });
+    world4.getAllPlayers().forEach((p) => {
+      finalWindow(p);
+    });
+  }
+}
+function buildBody2() {
+  let body = "\n===============================\n";
+  if (playersConfirmed2.size > 0) {
+    body += "\nJugadores confirmados:\n";
+    playersConfirmed2.forEach((p) => {
+      body += "- " + p + "\n";
+    });
+  }
+  if (playersNotConfirmed2.size > 0) {
+    body += "\nJugadores no confirmados:\n";
+    playersNotConfirmed2.forEach((p) => {
+      body += "- " + p + "\n";
+    });
+  }
+  body += "\n";
+  return body;
+}
+function finalWindow(player) {
+  const window = new ActionFormData2().title("UHC").body(buildFinalBody());
+  if (!ready.has(player.nameTag)) {
+    window.button("LISTO");
+  }
+  window.show(player).then((response) => {
+    if (response.selection == 0) {
+      world4.sendMessage(player.nameTag + " est\xE1 listo para empezar la partida");
+      ready.add(player.nameTag);
+      notReady.delete(player.nameTag);
+      if (notReady.size == 0) {
+        controller("confirm", [lifes, time]);
+      }
+    }
+  });
+}
+function buildFinalBody() {
+  let body = "\nYa se han confirmado todos los ajustes de la partida, cuando est\xE9s preparado pulsa listo\n\nReglas:\n- El mapa tiene un tama\xF1o de 3000 por 3000, y el centro al final de la partida de 300 por 300\n- Si un jugador es eliminado por otro este no revivir\xE1\n\nAl final de la partida:\n- Todos los jugadores deber\xE1n estar en el centro del mapa, los que lleguen a tiempo recibir\xE1n una barra de vida extra\n- Se te retirar\xE1n tus vidas adicionales pero a cambio se te dar\xE1 una barra de vida por cada una restante\n- Si no se llegara a tiempo se te teletransportar\xE1 al centro del mapa, pero no se te dar\xE1 la barra de vida\n";
+  if (ready.size > 0) {
+    body += "\n===============================\n\nJugadores preparados:\n";
+  }
+  for (let p of ready) {
+    body += "- " + p + "\n";
+  }
+  body += "\n";
+  return body;
+}
 function mainMenu(player) {
   if (phase == 1) {
     if (firstTutorialSeen.has(player.nameTag)) {
@@ -3734,7 +3776,7 @@ function mainMenu(player) {
     }
   } else if (phase == 2) {
     if (secondTutorialSeen.has(player.nameTag)) {
-      windowController("startWindow", [player]);
+      gameSettingsWindow(player);
     } else {
       secondTutorialSeen.add(player.nameTag);
       const mainMenu2 = new ActionFormData2().title("UHC").body(
@@ -3747,6 +3789,7 @@ function mainMenu(player) {
       });
     }
   } else if (phase == 3) {
+    finalWindow(player);
   }
 }
 function teamsFormed() {
@@ -3762,6 +3805,7 @@ var lives;
 var spawnPoints;
 var finalSpawnPoints;
 function processPlayerDie(event) {
+  spawnPoints.set(event.deadEntity.nameTag, { x: event.deadEntity.location.x, z: event.deadEntity.location.z });
   if (event.damageSource.damagingEntity?.typeId == "minecraft:player" || !checkLives(event.deadEntity)) {
     const location = { x: event.deadEntity.location.x, y: event.deadEntity.location.y + 1, z: event.deadEntity.location.z };
     const inventory = event.deadEntity.getComponent("inventory");
@@ -3780,6 +3824,12 @@ function processPlayerDie(event) {
         continue;
       world5.getDimension("overworld").spawnItem(e, location);
     }
+    const level = event.deadEntity.level;
+    for (let i = 0; i < level; i++) {
+      for (let j = 0; j < 7; j++) {
+        world5.getDimension("overworld").spawnEntity("minecraft:experience_orb", location);
+      }
+    }
     setLives(event.deadEntity, 0);
     const cords = { x: event.deadEntity.location.x, y: event.deadEntity.location.y, z: event.deadEntity.location.z };
     setFinalSpawn(event.deadEntity, cords);
@@ -3791,12 +3841,12 @@ function processPlayerSpawn(event) {
     revive(event.player);
   }
 }
-function initialize(spawnPointsAux, lifes2) {
-  spawnPoints = spawnPointsAux;
+function initialize(lifes2) {
+  spawnPoints = /* @__PURE__ */ new Map();
   finalSpawnPoints = /* @__PURE__ */ new Map();
   lives = /* @__PURE__ */ new Map();
-  spawnPointsAux.forEach((value, key) => {
-    lives.set(key, lifes2 - 1);
+  world5.getAllPlayers().forEach((player) => {
+    lives.set(player.nameTag, lifes2 - 1);
   });
 }
 function setLives(player, x) {
@@ -3804,6 +3854,20 @@ function setLives(player, x) {
 }
 function setFinalSpawn(player, cords) {
   finalSpawnPoints.set(player.nameTag, cords);
+}
+function setExtraHealthBars(finalSize, player, extra) {
+  let aux = lives.get(player.nameTag);
+  world5.sendMessage("aux: " + aux);
+  if (aux != void 0 && aux > -1) {
+    if (extra) {
+      player.runCommandAsync("effect @s health_boost infinite " + (aux * 5 + 4) + " true");
+      player.runCommandAsync("effect @s instant_health " + (aux * 5 + 5) + " 0 true");
+    } else {
+      player.runCommandAsync("effect @s health_boost infinite " + (aux * 5 - 1) + " true");
+      player.runCommandAsync("effect @s instant_health " + aux * 5 + " 0 true");
+    }
+    lives.set(player.nameTag, 0);
+  }
 }
 function checkLives(player) {
   let vidas = lives.get(player.nameTag);
@@ -3819,6 +3883,7 @@ function revive(player) {
     player.setGameMode(GameMode.spectator);
     world5.sendMessage("\xA74\xA7lEl jugador " + player.nameTag + " ha sido eliminado");
     player.teleport(finalSpawnPoints.get(player.nameTag));
+    lives.set(player.nameTag, lives.get(player.nameTag) - 1);
   } else {
     if (vidas == 1) {
       world5.sendMessage("\xA74\xA7lAl jugador " + player.nameTag + " le queda " + vidas + " vida");
@@ -3848,7 +3913,7 @@ function teleportPlayer3(player) {
 import { system, world as world6 } from "@minecraft/server";
 var start;
 var end;
-function timeMessage() {
+function timeMessage(finalSize) {
   const currentTime = system.currentTick;
   const players2 = world6.getAllPlayers();
   if (currentTime - start == (end - start) / 2) {
@@ -3861,8 +3926,8 @@ function timeMessage() {
     return true;
   } else if (currentTime - start >= (end - start) * 3 / 4) {
     for (let p of players2) {
-      let distx = Math.floor(Math.abs(p.location.x) - 148);
-      let distz = Math.floor(Math.abs(p.location.z) - 148);
+      let distx = Math.floor(Math.abs(p.location.x) - finalSize - 2);
+      let distz = Math.floor(Math.abs(p.location.z) - finalSize - 2);
       if (distx > 0 && distz > 0) {
         p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + Math.floor(Math.sqrt(distx * distx + distz * distz)) + " b");
       } else if (distx > 0) {
@@ -3887,6 +3952,7 @@ function setTime(startTime, endTime) {
 
 // scripts/main.ts
 var size = 1500;
+var FINALSIZE = 150;
 var HEIGHT = 200;
 var STARTHEIGHT = -63;
 var DIST = 100;
@@ -3903,9 +3969,14 @@ function gameTick() {
       processPlayer(p);
     }
     if (!stopMessages) {
-      stopMessages = timeMessage();
+      stopMessages = timeMessage(FINALSIZE);
       if (stopMessages) {
-        size = 150;
+        size = FINALSIZE;
+        for (let p of players2) {
+          let extra = Math.abs(p.location.x) < FINALSIZE && Math.abs(p.location.z) < FINALSIZE;
+          processPlayer(p);
+          setExtraHealthBars(FINALSIZE, p, extra);
+        }
       }
     }
   }
@@ -3966,11 +4037,14 @@ function controller(event, params) {
       break;
     case "confirm":
       spawnPoints2 = spreadPlayers(size);
-      initialize(spawnPoints2, params[0]);
+      initialize(params[0]);
       const startTime = system2.currentTick - system2.currentTick % 20;
       const endTime = startTime + params[1] * 60 * 20;
       setTime(startTime, endTime);
       start2 = true;
+      break;
+    default:
+      console.log("No se ha encontrado el evento " + event);
       break;
   }
 }

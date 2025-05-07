@@ -24,13 +24,13 @@ function buildBody(): string {
   if (playersConfirmed.size > 0) {
     body += "\nJugadores confirmados:\n";
     playersConfirmed.forEach(p => {
-      body += p + "\n";
+      body += "- " + p + "\n";
     });
   }
   if (playersNotConfirmed.size > 0) {
     body += "\nJugadores no confirmados:\n";
     playersNotConfirmed.forEach(p => {
-      body += p + "\n";
+      body += "- " + p + "\n";
     });
   }
   return body;
@@ -54,6 +54,16 @@ function processConfirmSelection(player:Player) {
   }
 }
 
+//Procesa la cancelacion
+function processCancelation(player:Player) {
+  seleccionMade = false;
+  manualSelected = false;
+  playersConfirmed.clear();
+  canceled = true;
+  concurrentAux++;
+  world.sendMessage("§4" + player.nameTag + " ha rechazado la configuración de los equipos propueta");
+}
+
 //Crea la vetana de confirmacion y procesa las respuestas
 function confirmationWindow(player:Player){
   //se construye la ventana de confirmacion
@@ -63,55 +73,49 @@ function confirmationWindow(player:Player){
   }
   
   let window = new ActionFormData()
-    .title("Confirmación")
+    .title("Equipos")
     .body(body + "\n")
-    .button("Cancelar");
-    
-  if (manualSelected){
-    window.button("Cambiar de equipo");
-  }
 
+  //si ya ha confirmado se le avisa
   if (playersConfirmed.has(player.nameTag)) {
     window.body(body + "\nYa has confirmado tu selección\n");
   }
-
-  else if (playersWithoutTeam.size > 0 && manualSelected) {
-    window.body(body + "\n===============================\n"
-      + "\nNo se puede confirmar aún, falta algún jugador por elegir equipo\n\n");
-  }
-
+  //si no se pone el boton de confirmar
   else {
     window.button("Confirmar");
   }
+  //si esta en manual se pone el boton de cambiar de equipo
+  if (manualSelected){
+    window.button("Cambiar de equipo");
+    //si ademas falta algun jugador por elegir equipo se le avisa
+    if (playersWithoutTeam.size > 0) {
+      window.body(body + "\n===============================\n"
+        + "\nNo se puede confirmar aún, falta algún jugador por elegir equipo\n\n");
+    }
+  }
+  //se pone el boton de cancelar en cualquier caso
+  window.button("Cancelar");
 
   const aux = concurrentAux;
   //se muestra la ventana de confirmacion
   window.show(player).then((response) => {     
-    if (response.selection === 0) { //CANCELAR
+    if (response.selection === 0) { //CONFIRMAR
       if (checkConcurrence(aux, player)) return;
-
-      seleccionMade = false;
-      manualSelected = false;
-      playersConfirmed.clear();
-      canceled = true;
-      concurrentAux++;
-      world.sendMessage("§4" + player.nameTag + " ha rechazado la configuración de los equipos propueta");
+      processConfirmSelection(player);
     } 
 
-    else if (response.selection == 1) { //selecciona CAMBIAR EQUIPO / CONFIRMAR
+    else if (response.selection == 1) { //CAMBIAR EQUIPO / CANCELAR
       if (checkConcurrence(aux, player)) return;
-
       if (manualSelected) //CAMBIAR EQUIPO
         selectTeam(player);
       else { //CONFIRMAR
-        processConfirmSelection(player);
+        processCancelation(player);
       }
     }
     
-    else if (response.selection == 2) { //selecciona CONFIRMAR
+    else if (response.selection == 2) { //CANCELAR
       if (checkConcurrence(aux, player)) return;
-
-      processConfirmSelection(player);
+      processCancelation(player);
     }
   });
 }
@@ -165,7 +169,7 @@ function buildbodyManual() {
 
 function selectTeam(player:Player){
   let window = new ActionFormData()
-    .title("Seleción de equipo")
+    .title("Manual")
     .body(sentence + "\n");
 
   for (let i = 0; i < teams.length; i++){
@@ -179,8 +183,8 @@ function selectTeam(player:Player){
     }
     else {
       if (checkConcurrence(aux, player)) return;
-      
-      if (playersTeam.has(player.nameTag) && response.selection != playersTeam.get(player.nameTag)) {//el jugador ya tenia equipo
+      if (playersTeam.has(player.nameTag)) {//el jugador ya tenia equipo
+        if (response.selection == playersTeam.get(player.nameTag)) return;
         world.sendMessage(player.nameTag + " ha elegido el equipo " + (response.selection as number + 1).toString());
         teams[playersTeam.get(player.nameTag) as number].delete(player);
         playersConfirmed.forEach((p) => {
@@ -188,7 +192,6 @@ function selectTeam(player:Player){
         });
         playersConfirmed.clear();
         world.sendMessage("Alguien ha cambiado de equipo, vuelve a confirmar la configuración");
-
         processTeamSelection(response);
         world.getAllPlayers().forEach((p) => {
             confirmationWindow(p);
@@ -216,7 +219,7 @@ function selectTeam(player:Player){
 
 function manualNumberOfTeams(player:Player, numberOfPlayers:number){
   let window = new ActionFormData()
-    .title("Configuración de los equipos")
+    .title("Manual")
     .body("\nElige el número de equipos\n\n");
   
   for (let i = 0; i < numberOfPlayers; i++){

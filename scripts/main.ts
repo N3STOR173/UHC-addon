@@ -30,7 +30,7 @@ const FRECUENCY = 20;                               //frecuencia con la que se c
 //Variables de control:
 //==========================================================================================================================
 let start = false;
-let stopMessages = false; //para evitar spam de mensajes al iniciar el juego
+let stopMessages = false;
 //==========================================================================================================================
 
 
@@ -51,13 +51,17 @@ function gameTick() {
     if (!stopMessages){
       stopMessages = timeMessage(FINALSIZE);
       if (stopMessages) {
-        setExtraHealthBars(FINALSIZE);
         size = FINALSIZE;
+        for (let p of players) {
+          let extra = Math.abs(p.location.x) < FINALSIZE && Math.abs(p.location.z) < FINALSIZE;
+          processPlayer(p);
+          setExtraHealthBars(FINALSIZE, p, extra);
+        }
       }
     }
 
     //comprobacion de victoria
-    let aux = 0;
+    /*let aux = 0;
     let ganador;
     for (let p of players) {
       if (p.getGameMode() == GameMode.survival) {
@@ -72,7 +76,7 @@ function gameTick() {
     else if (aux == 0) {
       players[0].runCommand("/title @a title ¡Empate!");
       start = false;
-    }
+    }*/
   }
   system.run(gameTick);
 }
@@ -166,11 +170,16 @@ export function controller (event:String, params:any[]) {
     //evento para comenzar la partida (mainMenuWindows)
     case "confirm":
       spawnPoints = spreadPlayers(size);
-      initialize(spawnPoints, params[0]);
+      initialize(params[0]);
       const startTime = system.currentTick - (system.currentTick % 20);
       const endTime = startTime + (params[1] * 60 * 20);
       setTime(startTime, endTime);
       start = true;
       break;
+
+    default:
+      console.log("No se ha encontrado el evento " + event);
+      break;
+
   }
 }

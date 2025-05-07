@@ -6,6 +6,7 @@ let spawnPoints:Map<String,{x:number, z:number}>;
 let finalSpawnPoints:Map<String,{x:number, y:number, z:number}>;
 
 export function processPlayerDie(event:EntityDieAfterEvent) {
+  spawnPoints.set(event.deadEntity.nameTag, {x:event.deadEntity.location.x, z:event.deadEntity.location.z});
   if (event.damageSource.damagingEntity?.typeId == "minecraft:player" || !checkLives(event.deadEntity as Player)) {
       const location = {x:event.deadEntity.location.x, y:event.deadEntity.location.y+1, z:event.deadEntity.location.z};
   
@@ -23,6 +24,13 @@ export function processPlayerDie(event:EntityDieAfterEvent) {
         if (e == undefined) continue;
         world.getDimension("overworld").spawnItem(e, location);
       }
+
+      const level = (event.deadEntity as Player).level;
+      for (let i = 0; i < level; i++) {
+        for (let j = 0; j < 7; j++) {
+          world.getDimension("overworld").spawnEntity("minecraft:experience_orb", location);
+        }
+      }
   
       setLives(event.deadEntity as Player, 0);
       const cords:Vector3 = {x:event.deadEntity.location.x, y:event.deadEntity.location.y, z:event.deadEntity.location.z};
@@ -37,14 +45,18 @@ export function processPlayerSpawn(event:PlayerSpawnAfterEvent) {
   }
 }
 
-export function initialize (spawnPointsAux:Map<String,{x:number, z:number}>, lifes:number) {
-  
-  spawnPoints = spawnPointsAux;
+export function initialize (lifes:number) {
+  //spawnPointsAux:Map<String,{x:number, z:number}>
+  //spawnPoints = spawnPointsAux;
+  spawnPoints = new Map<String,{x:number, z:number}>();
   finalSpawnPoints = new Map<String,{x:number, y:number, z:number}>();
   lives = new Map<String,number>();
-  spawnPointsAux.forEach((value, key) => {
-    lives.set(key, lifes - 1);
+  world.getAllPlayers().forEach((player) => {
+    lives.set(player.nameTag, lifes - 1);
   });
+  /*spawnPointsAux.forEach((value, key) => {
+    lives.set(key, lifes - 1);
+  });*/
 }
 
 export function setLives(player:Player, x:number) {
@@ -56,19 +68,21 @@ export function setFinalSpawn(player:Player, cords:{x:number, y:number, z:number
   finalSpawnPoints.set(player.nameTag, cords);
 }
 
-export function setExtraHealthBars(finalSize:number) {
-  world.getAllPlayers().forEach((player) => {
-    let aux = lives.get(player.nameTag);
-    if (aux != undefined && aux > -1) {
-      if (Math.abs(player.location.x) < finalSize && Math.abs(player.location.z) < finalSize) {
-        player.addEffect(MinecraftEffectTypes.HealthBoost, Infinity, { amplifier: aux * 5 + 5, showParticles: false });
-      }
-      else {
-        player.addEffect(MinecraftEffectTypes.HealthBoost, Infinity, { amplifier: aux * 5, showParticles: false });
-      }
-      lives.set(player.nameTag, 0);
+export function setExtraHealthBars(finalSize:number, player:Player, extra:boolean) {
+  
+  let aux = lives.get(player.nameTag);
+  world.sendMessage("aux: " + aux);
+  if (aux != undefined && aux > -1) {
+    if (extra) {
+      player.runCommandAsync("effect @s health_boost infinite "  + (aux * 5 + 4) + " true");
+      player.runCommandAsync("effect @s instant_health " + (aux * 5 + 5) + " 0 true");
     }
-  });
+    else {
+      player.runCommandAsync("effect @s health_boost infinite "  + (aux * 5 - 1) + " true");
+      player.runCommandAsync("effect @s instant_health " + (aux * 5) + " 0 true");
+    }
+    lives.set(player.nameTag, 0);
+  }
 }
 
 //devuelve true si puede revivir y false si no puede
