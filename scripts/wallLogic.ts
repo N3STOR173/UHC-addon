@@ -19,7 +19,7 @@ variableCord: coordenada que va variando (entre -1000 y 1000)
 function buildWall(
   size: number, 
   height: number,
-  startHight: number, 
+  startHeight: number, 
   buildDist: number,
   axis: string,
   block: string, 
@@ -44,8 +44,12 @@ function buildWall(
   if (axis === "X") {
     for (let z:number = variableMin; z < variableMax+1; z++) { 
       if (dimension.getBlock({x:stableCord, y:height-1, z})?.typeId !== block) {
-        for (let y = startHight; y < height; y++) {
-          dimension.getBlock({x:stableCord, y, z})?.setPermutation(BlockPermutation.resolve(block));
+        
+        for (let y = height-1; y >= startHeight; y--) {
+          let blockAux = block;
+          if (dimension.getBlock({x:stableCord, y, z})?.typeId !== "minecraft:air")
+            blockAux = "minecraft:bedrock";
+          dimension.getBlock({x:stableCord, y, z})?.setPermutation(BlockPermutation.resolve(blockAux));
         }
       }
     }
@@ -54,8 +58,12 @@ function buildWall(
   else if (axis === "Z") {
     for (let x:number = variableMin; x < variableMax+1; x++) { 
       if (dimension.getBlock({x, y:height-1, z:stableCord})?.typeId !== block) {
-        for (let y = startHight; y < height; y++) {
-          dimension.getBlock({x, y, z:stableCord})?.setPermutation(BlockPermutation.resolve(block));
+        
+        for (let y = height-1; y >= startHeight; y--) {
+          let blockAux = block;
+          if (dimension.getBlock({x, y, z:stableCord})?.typeId !== "minecraft:air")
+            blockAux = "minecraft:bedrock";
+          dimension.getBlock({x, y, z:stableCord})?.setPermutation(BlockPermutation.resolve(blockAux));
         }
       }
     }

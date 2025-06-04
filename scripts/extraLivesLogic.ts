@@ -1,12 +1,20 @@
-import { world, Player, GameMode, Effect, EntityDieAfterEvent, EntityInventoryComponent, ItemStack, EntityEquippableComponent, EquipmentSlot, Vector3, PlayerSpawnAfterEvent } from "@minecraft/server";
+import { world, Player, GameMode, Effect, EntityDieAfterEvent, EntityInventoryComponent, ItemStack, EntityEquippableComponent, EquipmentSlot, Vector3, PlayerSpawnAfterEvent, EntityHealthComponent, system, EntityHurtAfterEvent, EntityHurtAfterEventSignal, Dimension } from "@minecraft/server";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
+import { controller } from "./main";
 
 let lives:Map<String,number>;
 let spawnPoints:Map<String,{x:number, z:number}>;
 let finalSpawnPoints:Map<String,{x:number, y:number, z:number}>;
+let spawnDimention:Map<String,Dimension>;
+let spawnLocation:string;
+let deathMessage:Map<String, number>;
 
 export function processPlayerDie(event:EntityDieAfterEvent) {
-  spawnPoints.set(event.deadEntity.nameTag, {x:event.deadEntity.location.x, z:event.deadEntity.location.z});
+  const cords:Vector3 = {x:event.deadEntity.location.x, y:event.deadEntity.location.y, z:event.deadEntity.location.z};
+  if (spawnLocation == "muerte") {
+   finalSpawnPoints.set((event.deadEntity as Player).nameTag, cords);
+   spawnDimention.set(event.deadEntity.nameTag, event.deadEntity.dimension);
+  }
   if (event.damageSource.damagingEntity?.typeId == "minecraft:player" || !checkLives(event.deadEntity as Player)) {
       const location = {x:event.deadEntity.location.x, y:event.deadEntity.location.y+1, z:event.deadEntity.location.z};
   
@@ -33,48 +41,53 @@ export function processPlayerDie(event:EntityDieAfterEvent) {
       }
   
       setLives(event.deadEntity as Player, 0);
-      const cords:Vector3 = {x:event.deadEntity.location.x, y:event.deadEntity.location.y, z:event.deadEntity.location.z};
-      setFinalSpawn(event.deadEntity as Player, cords);
+      finalSpawnPoints.set((event.deadEntity as Player).nameTag, cords);
+      spawnDimention.set(event.deadEntity.nameTag, event.deadEntity.dimension);
     }
 }
 
 export function processPlayerSpawn(event:PlayerSpawnAfterEvent) { 
   if (!event.initialSpawn) {
-    checkLives(event.player);
     revive(event.player);
   }
 }
 
-export function initialize (lifes:number) {
-  //spawnPointsAux:Map<String,{x:number, z:number}>
-  //spawnPoints = spawnPointsAux;
-  spawnPoints = new Map<String,{x:number, z:number}>();
+export function initialize (lifes:number, spawnPointsAux:Map<String,{x:number, z:number}>, spawn:string) {
+  spawnLocation = spawn;
+  if (spawnLocation == "muerte"){
+    spawnPoints = new Map<String,{x:number, z:number}>();
+  }
+  else if (spawnLocation == "spawn"){
+    spawnPoints = spawnPointsAux;
+  };
+  spawnDimention = new Map<String,Dimension>();
   finalSpawnPoints = new Map<String,{x:number, y:number, z:number}>();
   lives = new Map<String,number>();
+  deathMessage = new Map<String,number>();
   world.getAllPlayers().forEach((player) => {
     lives.set(player.nameTag, lifes - 1);
+    deathMessage.set(player.nameTag, 0);
   });
-  /*spawnPointsAux.forEach((value, key) => {
-    lives.set(key, lifes - 1);
-  });*/
 }
 
 export function setLives(player:Player, x:number) {
   lives.set(player.nameTag, x);
 }
 
-//se usa para que el jugador entre en el modo espectador en la coordenada donde murio
-export function setFinalSpawn(player:Player, cords:{x:number, y:number, z:number}) {
-  finalSpawnPoints.set(player.nameTag, cords);
-}
-
-export function setExtraHealthBars(finalSize:number, player:Player, extra:boolean) {
+export function setExtraHealthBars(finalSize:number, player:Player) {
   
+  let auxX;let auxZ;
+  if (player.location.x < 0) auxX = 2; else auxX = 1;
+  if (player.location.z < 0) auxZ = 2; else auxZ = 1;
+  let distx = Math.floor(Math.abs(player.location.x)) - finalSize+auxX;
+  let distz = Math.floor(Math.abs(player.location.z)) - finalSize+auxZ;
+  let extra:boolean = (distx < 1 && distz < 1 && player.dimension == world.getDimension("overworld"));
+
   let aux = lives.get(player.nameTag);
   world.sendMessage("aux: " + aux);
   if (aux != undefined && aux > -1) {
     if (extra) {
-      player.runCommandAsync("effect @s health_boost infinite "  + (aux * 5 + 4) + " true");
+      player.runCommandAsync("effect @s health_boost infinite "  + (aux * 5 + 5 - 1) + " true");
       player.runCommandAsync("effect @s instant_health " + (aux * 5 + 5) + " 0 true");
     }
     else {
@@ -85,7 +98,6 @@ export function setExtraHealthBars(finalSize:number, player:Player, extra:boolea
   }
 }
 
-//devuelve true si puede revivir y false si no puede
 function checkLives(player:Player):boolean {
   let vidas = lives.get(player.nameTag)
   if (vidas == 0) {
@@ -102,10 +114,13 @@ function revive(player:Player) {
   if (vidas == 0) {
     player.setGameMode(GameMode.spectator);
     world.sendMessage("§4§lEl jugador " + player.nameTag + " ha sido eliminado");
-    player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number});
+    player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number}, 
+      {dimension: spawnDimention.get(player.nameTag)});
     lives.set(player.nameTag, lives.get(player.nameTag) as number - 1);
+    deathMessage.set(player.nameTag, deathMessage.get(player.nameTag) as number + 1);
   }
   else {
+    //mensajes
     if (vidas == 1) {
       world.sendMessage("§4§lAl jugador " + player.nameTag + " le queda " + vidas + " vida");
     }
@@ -113,7 +128,17 @@ function revive(player:Player) {
       world.sendMessage("§4§lAl jugador " + player.nameTag + " le quedan " + vidas + " vidas");
     }
     lives.set(player.nameTag, lives.get(player.nameTag) as number - 1);
-    teleportPlayer(player);
+   
+    //logica
+    if (spawnLocation == "muerte"){
+      blockPvp(player)
+      player.addEffect(MinecraftEffectTypes.Resistance, 1200, { amplifier: 255, showParticles: false });
+      player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number}, 
+      {dimension: spawnDimention.get(player.nameTag)});
+    }
+    else if (spawnLocation == "spawn"){
+      teleportPlayer(player);
+    }
   }
 }
 
@@ -131,5 +156,70 @@ function teleportPlayer(player: Player) {
   player.addEffect(MinecraftEffectTypes.Resistance, 160, { amplifier: 255, showParticles: false });
   player.addEffect(MinecraftEffectTypes.InstantHealth, 160, { amplifier: 255, showParticles: false });
   player.addEffect(MinecraftEffectTypes.Saturation, 160, { amplifier: 255, showParticles: false });
-  player.teleport({x:x, y:320, z:z});
+  player.teleport({x:x, y:320, z:z}, {dimension: world.getDimension("overworld")});
+}
+
+export function blockPvp(player: Player) {
+
+  //quitar despues
+  if (deathMessage == undefined)
+    deathMessage = new Map<String, number>();
+  if (deathMessage.get(player.nameTag) == undefined)
+    deathMessage.set(player.nameTag, 0)
+  //quitar despues
+
+  deathMessage.set(player.nameTag, deathMessage.get(player.nameTag) as number + 1);
+  let before = deathMessage.get(player.nameTag);
+
+  controller("actionBarDisactive", [player]);
+  let subscription: (event: EntityHurtAfterEvent) => void;
+  let livesPrev:Map<string,number> = new Map<string,number >();
+  let lives:Map<string,number> = new Map<string,number >();
+  world.getAllPlayers().forEach((p) => {
+    lives.set(p.nameTag, (p.getComponent("health") as EntityHealthComponent).currentValue);
+  });
+
+  subscription = world.afterEvents.entityHurt.subscribe((event) => {
+
+    const damageSource = event.damageSource;
+    const hurtEntity = event.hurtEntity;
+
+    if (
+      damageSource?.damagingEntity?.nameTag == player.nameTag &&
+      damageSource?.damagingEntity?.typeId === "minecraft:player" &&
+      hurtEntity?.typeId === "minecraft:player"
+    ) {
+      (hurtEntity.getComponent("health") as EntityHealthComponent).setCurrentValue(livesPrev.get(hurtEntity.nameTag) as number);
+    }
+  });
+
+  const resistanceTime = 60;
+  const blockPvpTime = 100;
+  system.run(() => bucle(resistanceTime, 0));
+  function bucle(resistance:number, blockPvp:number) {
+    blockPvp++;
+    if (blockPvp % 20 == 0){
+      resistance--;
+
+      livesPrev = new Map(lives);
+      world.getAllPlayers().forEach((p) => {
+        lives.set(p.nameTag, (p.getComponent("health") as EntityHealthComponent).currentValue);
+      });
+
+      if (resistance > 0) {
+        player.runCommand("/title @s actionbar Resistencia: " + resistance
+          + " | pvp disabled: " + (blockPvpTime - blockPvp/20));
+      }
+      else {
+        player.runCommand("/title @s actionbar pvp disabled: " + (blockPvpTime - blockPvp/20));
+      }
+    }
+    if (blockPvp < 20 * blockPvpTime && deathMessage.get(player.nameTag) ==  before) {
+      system.run(() => bucle(resistance, blockPvp));
+    }
+    else {
+      world.afterEvents.entityHurt.unsubscribe(subscription);
+      controller("actionBarActive", [player]);
+    }
+  }
 }

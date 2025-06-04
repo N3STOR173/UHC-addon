@@ -63,7 +63,7 @@ function teleportPlayer(player: Player, x: number, z: number, playersSpawnPoint:
     player.addEffect(MinecraftEffectTypes.InstantHealth, 160, { amplifier: 255, showParticles: false });
     player.addEffect(MinecraftEffectTypes.Saturation, 160, { amplifier: 255, showParticles: false });
     player.runCommand("clear @s");
-    player.teleport({x:x, y:320, z:z});
+    player.teleport({x:x, y:320, z:z}, {dimension: world.getDimension("overworld")});
 
     playersSpawnPoint.set(player.nameTag, {x:x, z:z}); //guarda el spawn del jugador
   }

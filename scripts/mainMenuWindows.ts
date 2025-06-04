@@ -9,6 +9,7 @@ let playerChoosing:String;
 
 let lifes:number;
 let time:number;
+let spawnLocation:string;
 
 let playersConfirmed = new Set<string>();
 let playersNotConfirmed = new Set<string>();
@@ -68,7 +69,8 @@ function gameSettingsWindow(player:Player) {
     const configurationWindow = new ModalFormData()
       .title("Configuración de la partida")
       .textField("\nDuración de la partida (en minutos)", "60", "60")
-      .dropdown("\nNúmero de vidas", ["1", "2", "3", "4", "5"], 0)
+      .dropdown("\nNúmero de vidas", ["1", "2", "3", "4", "5"], 2)
+      .dropdown("Lugar spawn después de vida extra", ["Lugar de muerte", "Lugar de spawn"], 0);
 
     configurationWindow.show(player).then((response) => {
       if (response.canceled) {
@@ -96,7 +98,9 @@ function gameSettingsWindow(player:Player) {
 
         else {
           player.sendMessage("Introduce un número válido para el tiempo de la partida");
+          return;
         }
+        spawnLocation = response.formValues?.[2] == 0 ? "muerte": "spawn"; 
       }
     });
     }
@@ -113,6 +117,7 @@ function gameSettingsWindow(player:Player) {
 function processConfirmSelection(player:Player) {
   playersConfirmed.add(player.nameTag);
   playersNotConfirmed.delete(player.nameTag);
+  world.sendMessage(player.nameTag + " ha confirmado los ajustes");
   if (playersNotConfirmed.size == 0) {
     world.sendMessage("§2Todos los jugadores han confirmado la configuración de la partida");
     phase = 3;
@@ -161,7 +166,7 @@ function finalWindow(player:Player) {
       ready.add(player.nameTag);
       notReady.delete(player.nameTag);
       if (notReady.size == 0) {
-        controller("confirm", [lifes, time]);
+        controller("confirm", [lifes, time, spawnLocation]);
       }
     }
   });

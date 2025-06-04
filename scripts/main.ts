@@ -7,55 +7,94 @@ M0r1sh1ma4563w
 
 */
 
-import { world, system, GameMode } from "@minecraft/server";
+import { world, system, Player, EntityHealthComponent } from "@minecraft/server";
 import { processPlayer } from "./wallLogic";
 import { startRanDomChoosePlayers, startRandomChooseTeams, setPlayers, createFakePlayers, spreadPlayers, startManual } from "./teamsLogic";
 import { startWindow, debugSelectionWindow } from "./teamsWindows";
 import { mainMenu, teamsFormed } from "./mainMenuWindows";
-import { initialize, setLives, processPlayerDie, processPlayerSpawn, setExtraHealthBars } from "./extraLivesLogic";
+import { initialize, setLives, processPlayerDie, processPlayerSpawn, setExtraHealthBars, blockPvp } from "./extraLivesLogic";
 import { timeMessage, setTime } from "./timeLogic";
+import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 
 //Configuracion del muro:
 //==========================================================================================================================
-export let size = 1500;                             //distancia a la que se hace el muro
-const FINALSIZE = 150;                              //distancia a la que se hace el muro al final de la partida
-export const HEIGHT = 200;                          //altura del muro (hata la coordenada y que llega)
-export const STARTHEIGHT = -63;                     //altura desde la que empieza a hacer el muro
-export const DIST = 100;                            //distancia a la que tiene que estar el jugador para que se haga el muro
-export const BUILDDIST = 50;                        //distancia desde la del jugador a la que se empieza a hacer el muro
-export const BLOCKTYPE = "minecraft:barrier";       //material del muro
-const FRECUENCY = 20;                               //frecuencia con la que se comprueba si hay que hacer el muro
+export let size = 1500;                                 //distancia a la que se hace el muro
+const FINALSIZE = 150;                                  //distancia a la que se hace el muro al final de la partida
+export const HEIGHT = 200;                              //altura del muro (hata la coordenada y que llega)
+export const STARTHEIGHT = -63;                         //altura desde la que empieza a hacer el muro
+export const DIST = 100;                                //distancia a la que tiene que estar el jugador para que se haga el muro
+export const BUILDDIST = 50;                            //distancia desde la del jugador a la que se empieza a hacer el muro
+export const BLOCKTYPE = "minecraft:barrier";           //material del muro
+const FRECUENCY = 20;                                   //frecuencia con la que se comprueba si hay que hacer el muro
 //==========================================================================================================================
 
 //Variables de control:
 //==========================================================================================================================
-let start = false;
-let stopMessages = false;
+let start = false;                                                      //marca si ha empezado la partida o no
+let final = false;                                                      //marca si se ha llegado al final de la partida o no
+let actionbarPlayers:Map<Player, number> = new Map<Player, number>();   //los jugadores que se les quiere enviar otro mensaje por la actionbar
 //==========================================================================================================================
 
-
-//llamada inicial al bucle principal
+//llamada inicial
+system.run(startFunction);
 system.run(gameTick);
+
+//funcion para inicializar el mundo
+function startFunction(){
+  world.gameRules.keepInventory = true;
+  world.gameRules.naturalRegeneration = false;
+  world.getAllPlayers().forEach(player => {
+    actionbarPlayers.set(player, 0);
+  });
+}
 
 //bucle principal
 function gameTick() {
-  if (system.currentTick % FRECUENCY === 0 && start) {
+  if (system.currentTick % FRECUENCY === 0) {
 
-    //construccion del muro
     let players = world.getAllPlayers();
     for (let p of players) {
-      processPlayer(p);
+      let x = Math.floor((p.getComponent("health") as EntityHealthComponent).currentValue);
+      p.runCommand("scoreboard players set @s vida " +  x);
     }
 
-    //mensajes de tiempo
-    if (!stopMessages){
-      stopMessages = timeMessage(FINALSIZE);
-      if (stopMessages) {
-        size = FINALSIZE;
-        for (let p of players) {
-          let extra = Math.abs(p.location.x) < FINALSIZE && Math.abs(p.location.z) < FINALSIZE;
+    if (start) {
+      //construccion del muro
+      for (let p of players) {
+       if (p.dimension == world.getDimension("overworld"))
           processPlayer(p);
-          setExtraHealthBars(FINALSIZE, p, extra);
+      }
+
+      system.runInterval
+
+      //mensajes de tiempo
+      if (!final){
+        //para mostrar solo el mensaje de tiempo a los que no se les esté mostrando otro mensaje
+        let playersArray: Set<Player> = new Set(world.getAllPlayers());
+        let netherPlayers: Set<Player> = new Set();
+        actionbarPlayers.forEach( (value,key) => {
+          if (value != 0)
+            playersArray.delete(key);
+          else if (key.dimension == world.getDimension("nether")) {
+            playersArray.delete(key);
+            netherPlayers.add(key);
+          }
+        });
+        final = timeMessage(size, FINALSIZE, playersArray, netherPlayers);
+
+        //se llega al final de la partida
+        if (final) {
+          size = FINALSIZE;
+          for (let p of players) {
+            setExtraHealthBars(FINALSIZE, p);
+            netherPlayers.forEach((player) => {
+              let x = Math.floor(player.location.x * 8);
+              let z = Math.floor(player.location.z * 8);
+              player.teleport({x:x, y:320, z:z}, {dimension: world.getDimension("overworld")});
+              player.addEffect(MinecraftEffectTypes.Resistance, 160, { amplifier: 255, showParticles: false });
+            });
+            processPlayer(p);
+          }
         }
       }
     }
@@ -81,26 +120,18 @@ function gameTick() {
   system.run(gameTick);
 }
 
-//actionListener de los eventos de los scripts (desuso)
-system.afterEvents.scriptEventReceive.subscribe((event) => {
-  world.sendMessage("ha llegado el evento " + event.id);
-  world.sendMessage(" ");
-  let params:string[] = event.message.split(" ");
-
-  switch (event.id) {
-    case "uhc:initialize":
-      setLives(world.getAllPlayers()[0], 2);
-    break;  }
-}); 
+//==========================================================================================================================
 
 //actionListener de los eventos de muerte
 world.afterEvents.entityDie.subscribe((event) => {
-  if (event.deadEntity.typeId != "minecraft:player") return;
+  //blockPvp(event.deadEntity as Player);
+  if (event.deadEntity.typeId != "minecraft:player" || !start) return;
   processPlayerDie(event);
 });
 
 //actionListener de los eventos de spawn
 world.afterEvents.playerSpawn.subscribe((event) => {
+  if (!start) return;
   processPlayerSpawn(event);
 });
 
@@ -112,6 +143,18 @@ world.afterEvents.itemUse.subscribe((eventData) => {
     mainMenu(player);
   }
 })
+
+//actionListener de los eventos de los scripts (desuso)
+system.afterEvents.scriptEventReceive.subscribe((event) => {
+  world.sendMessage("ha llegado el evento " + event.id);
+  world.sendMessage(" ");
+  let params:string[] = event.message.split(" ");
+
+  switch (event.id) {
+    case "uhc:start":
+      startMessage();
+    break;  }
+}); 
 
 //comentada la anterior version
 /*
@@ -127,6 +170,8 @@ world.afterEvents.itemUse.subscribe((eventData) => {
   }
 })
 */
+
+//==========================================================================================================================
 
 //controlador de eventos llamados desde mainMenuWindows y uno desde teamsWindows
 //conecta las ventanas con la ventana de de seleccion de equipos
@@ -145,7 +190,7 @@ export function windowController (event:String, params:any[]) {
 
 //controlador de eventos llamados desde teamWindows y uno desde mainMenuWindows
 //conecta las ventanas con la logica de seleccion de equipos
-export function controller (event:String, params:any[]) {
+export async function controller (event:String, params:any[]) {
   let spawnPoints:Map<String,{x:number, z:number}>
   switch (event) {
     //eventos que forman los equipos
@@ -169,17 +214,48 @@ export function controller (event:String, params:any[]) {
     
     //evento para comenzar la partida (mainMenuWindows)
     case "confirm":
-      spawnPoints = spreadPlayers(size);
-      initialize(params[0]);
+      await startMessage();
+
       const startTime = system.currentTick - (system.currentTick % 20);
       const endTime = startTime + (params[1] * 60 * 20);
-      setTime(startTime, endTime);
       start = true;
+      startFunction();
+      spawnPoints = spreadPlayers(size);
+      initialize(params[0], spawnPoints, params[2]);
+      setTime(startTime, endTime);
       break;
 
+    //eventos para gestionar los mensajes de la actionbar
+    case "actionBarActive":
+      actionbarPlayers.set(params[0], (actionbarPlayers.get(params[0]) ?? 0) - 1);
+      break;
+    case "actionBarDisactive":
+      actionbarPlayers.set(params[0], (actionbarPlayers.get(params[0]) ?? 0) + 1);
+      break;
+
+    //para comprobar errores
     default:
       console.log("No se ha encontrado el evento " + event);
       break;
-
   }
+}
+
+function startMessage():Promise<void> { 
+  return new Promise(resolve => {
+    let tiempoRestante = 10;
+    let id = system.runInterval(() => {
+      if (tiempoRestante <= 0) {
+        world.getDimension("overworld").runCommand("/title @a title YA!");
+        world.getDimension("overworld").runCommand("/execute as @a at @s run playsound random.orb @s ~ ~ ~ ");
+        system.clearRun(id);
+        resolve();
+        return;
+      }
+      else {
+        world.getDimension("overworld").runCommand("/execute as @a at @s run playsound note.bell @s ~ ~ ~ ");
+        world.getDimension("overworld").runCommand("/title @a title " + tiempoRestante);
+        tiempoRestante--;
+      }
+    }, 20);
+  });
 }

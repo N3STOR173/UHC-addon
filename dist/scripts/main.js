@@ -1,5 +1,5 @@
 // scripts/main.ts
-import { world as world7, system as system2 } from "@minecraft/server";
+import { world as world7, system as system3 } from "@minecraft/server";
 
 // scripts/wallLogic.ts
 import { world, BlockPermutation } from "@minecraft/server";
@@ -2995,7 +2995,7 @@ var MinecraftPotionModifierTypes = ((MinecraftPotionModifierTypes2) => {
 })(MinecraftPotionModifierTypes || {});
 
 // scripts/wallLogic.ts
-function buildWall(size2, height, startHight, buildDist, axis, block, stableCord, variableCord) {
+function buildWall(size2, height, startHeight, buildDist, axis, block, stableCord, variableCord) {
   const dimension = world.getDimension("overworld");
   let variableMin = variableCord - buildDist;
   let variableMax = variableCord + buildDist;
@@ -3006,16 +3006,22 @@ function buildWall(size2, height, startHight, buildDist, axis, block, stableCord
   if (axis === "X") {
     for (let z = variableMin; z < variableMax + 1; z++) {
       if (dimension.getBlock({ x: stableCord, y: height - 1, z })?.typeId !== block) {
-        for (let y = startHight; y < height; y++) {
-          dimension.getBlock({ x: stableCord, y, z })?.setPermutation(BlockPermutation.resolve(block));
+        for (let y = height - 1; y >= startHeight; y--) {
+          let blockAux = block;
+          if (dimension.getBlock({ x: stableCord, y, z })?.typeId !== "minecraft:air")
+            blockAux = "minecraft:bedrock";
+          dimension.getBlock({ x: stableCord, y, z })?.setPermutation(BlockPermutation.resolve(blockAux));
         }
       }
     }
   } else if (axis === "Z") {
     for (let x = variableMin; x < variableMax + 1; x++) {
       if (dimension.getBlock({ x, y: height - 1, z: stableCord })?.typeId !== block) {
-        for (let y = startHight; y < height; y++) {
-          dimension.getBlock({ x, y, z: stableCord })?.setPermutation(BlockPermutation.resolve(block));
+        for (let y = height - 1; y >= startHeight; y--) {
+          let blockAux = block;
+          if (dimension.getBlock({ x, y, z: stableCord })?.typeId !== "minecraft:air")
+            blockAux = "minecraft:bedrock";
+          dimension.getBlock({ x, y, z: stableCord })?.setPermutation(BlockPermutation.resolve(blockAux));
         }
       }
     }
@@ -3116,7 +3122,7 @@ function teleportPlayer2(player, x, z, playersSpawnPoint) {
     player.addEffect(MinecraftEffectTypes.InstantHealth, 160, { amplifier: 255, showParticles: false });
     player.addEffect(MinecraftEffectTypes.Saturation, 160, { amplifier: 255, showParticles: false });
     player.runCommand("clear @s");
-    player.teleport({ x, y: 320, z });
+    player.teleport({ x, y: 320, z }, { dimension: world2.getDimension("overworld") });
     playersSpawnPoint.set(player.nameTag, { x, z });
   } else {
     let fake = player;
@@ -3299,12 +3305,13 @@ function addProposer() {
 function processConfirmSelection(player) {
   playersConfirmed.add(player.nameTag);
   playersNotConfirmed.delete(player.nameTag);
+  world3.sendMessage(player.nameTag + " ha confirmado los ajustes");
   if (playersNotConfirmed.size == 0 && !canceled) {
     if (manualSelected) {
       controller("manualChooseTeams", [teams2]);
     }
     windowController("teamsFormed", []);
-    world3.sendMessage("\xA72Todos los jugadores han confirmado la configuraci\xF3n de la partida\n\n");
+    world3.sendMessage("\xA72Todos los jugadores han confirmado la configuraci\xF3n de la partida");
   }
 }
 function processCancelation(player) {
@@ -3631,6 +3638,7 @@ var someoneChoosing2 = false;
 var playerChoosing2;
 var lifes;
 var time;
+var spawnLocation;
 var playersConfirmed2 = /* @__PURE__ */ new Set();
 var playersNotConfirmed2 = /* @__PURE__ */ new Set();
 var proposer;
@@ -3672,7 +3680,7 @@ function gameSettingsWindow(player) {
     if (!someoneChoosing2) {
       someoneChoosing2 = true;
       playerChoosing2 = player.nameTag;
-      const configurationWindow = new ModalFormData2().title("Configuraci\xF3n de la partida").textField("\nDuraci\xF3n de la partida (en minutos)", "60", "60").dropdown("\nN\xFAmero de vidas", ["1", "2", "3", "4", "5"], 0);
+      const configurationWindow = new ModalFormData2().title("Configuraci\xF3n de la partida").textField("\nDuraci\xF3n de la partida (en minutos)", "60", "60").dropdown("\nN\xFAmero de vidas", ["1", "2", "3", "4", "5"], 2).dropdown("Lugar spawn despu\xE9s de vida extra", ["Lugar de muerte", "Lugar de spawn"], 0);
       configurationWindow.show(player).then((response) => {
         if (response.canceled) {
           someoneChoosing2 = false;
@@ -3694,7 +3702,9 @@ function gameSettingsWindow(player) {
             world4.sendMessage(player.nameTag + " ha propuesto los ajustes de la partida, falta la confirmaci\xF3n por parte de los jugadores");
           } else {
             player.sendMessage("Introduce un n\xFAmero v\xE1lido para el tiempo de la partida");
+            return;
           }
+          spawnLocation = response.formValues?.[2] == 0 ? "muerte" : "spawn";
         }
       });
     } else {
@@ -3706,6 +3716,7 @@ function gameSettingsWindow(player) {
 function processConfirmSelection2(player) {
   playersConfirmed2.add(player.nameTag);
   playersNotConfirmed2.delete(player.nameTag);
+  world4.sendMessage(player.nameTag + " ha confirmado los ajustes");
   if (playersNotConfirmed2.size == 0) {
     world4.sendMessage("\xA72Todos los jugadores han confirmado la configuraci\xF3n de la partida");
     phase = 3;
@@ -3745,7 +3756,7 @@ function finalWindow(player) {
       ready.add(player.nameTag);
       notReady.delete(player.nameTag);
       if (notReady.size == 0) {
-        controller("confirm", [lifes, time]);
+        controller("confirm", [lifes, time, spawnLocation]);
       }
     }
   });
@@ -3800,12 +3811,19 @@ function teamsFormed() {
 }
 
 // scripts/extraLivesLogic.ts
-import { world as world5, GameMode, EquipmentSlot } from "@minecraft/server";
+import { world as world5, GameMode, EquipmentSlot, system } from "@minecraft/server";
 var lives;
 var spawnPoints;
 var finalSpawnPoints;
+var spawnDimention;
+var spawnLocation2;
+var deathMessage;
 function processPlayerDie(event) {
-  spawnPoints.set(event.deadEntity.nameTag, { x: event.deadEntity.location.x, z: event.deadEntity.location.z });
+  const cords = { x: event.deadEntity.location.x, y: event.deadEntity.location.y, z: event.deadEntity.location.z };
+  if (spawnLocation2 == "muerte") {
+    finalSpawnPoints.set(event.deadEntity.nameTag, cords);
+    spawnDimention.set(event.deadEntity.nameTag, event.deadEntity.dimension);
+  }
   if (event.damageSource.damagingEntity?.typeId == "minecraft:player" || !checkLives(event.deadEntity)) {
     const location = { x: event.deadEntity.location.x, y: event.deadEntity.location.y + 1, z: event.deadEntity.location.z };
     const inventory = event.deadEntity.getComponent("inventory");
@@ -3831,36 +3849,54 @@ function processPlayerDie(event) {
       }
     }
     setLives(event.deadEntity, 0);
-    const cords = { x: event.deadEntity.location.x, y: event.deadEntity.location.y, z: event.deadEntity.location.z };
-    setFinalSpawn(event.deadEntity, cords);
+    finalSpawnPoints.set(event.deadEntity.nameTag, cords);
+    spawnDimention.set(event.deadEntity.nameTag, event.deadEntity.dimension);
   }
 }
 function processPlayerSpawn(event) {
   if (!event.initialSpawn) {
-    checkLives(event.player);
     revive(event.player);
   }
 }
-function initialize(lifes2) {
-  spawnPoints = /* @__PURE__ */ new Map();
+function initialize(lifes2, spawnPointsAux, spawn) {
+  spawnLocation2 = spawn;
+  if (spawnLocation2 == "muerte") {
+    spawnPoints = /* @__PURE__ */ new Map();
+  } else if (spawnLocation2 == "spawn") {
+    spawnPoints = spawnPointsAux;
+  }
+  ;
+  spawnDimention = /* @__PURE__ */ new Map();
   finalSpawnPoints = /* @__PURE__ */ new Map();
   lives = /* @__PURE__ */ new Map();
+  deathMessage = /* @__PURE__ */ new Map();
   world5.getAllPlayers().forEach((player) => {
     lives.set(player.nameTag, lifes2 - 1);
+    deathMessage.set(player.nameTag, 0);
   });
 }
 function setLives(player, x) {
   lives.set(player.nameTag, x);
 }
-function setFinalSpawn(player, cords) {
-  finalSpawnPoints.set(player.nameTag, cords);
-}
-function setExtraHealthBars(finalSize, player, extra) {
+function setExtraHealthBars(finalSize, player) {
+  let auxX;
+  let auxZ;
+  if (player.location.x < 0)
+    auxX = 2;
+  else
+    auxX = 1;
+  if (player.location.z < 0)
+    auxZ = 2;
+  else
+    auxZ = 1;
+  let distx = Math.floor(Math.abs(player.location.x)) - finalSize + auxX;
+  let distz = Math.floor(Math.abs(player.location.z)) - finalSize + auxZ;
+  let extra = distx < 1 && distz < 1 && player.dimension == world5.getDimension("overworld");
   let aux = lives.get(player.nameTag);
   world5.sendMessage("aux: " + aux);
   if (aux != void 0 && aux > -1) {
     if (extra) {
-      player.runCommandAsync("effect @s health_boost infinite " + (aux * 5 + 4) + " true");
+      player.runCommandAsync("effect @s health_boost infinite " + (aux * 5 + 5 - 1) + " true");
       player.runCommandAsync("effect @s instant_health " + (aux * 5 + 5) + " 0 true");
     } else {
       player.runCommandAsync("effect @s health_boost infinite " + (aux * 5 - 1) + " true");
@@ -3882,8 +3918,12 @@ function revive(player) {
   if (vidas == 0) {
     player.setGameMode(GameMode.spectator);
     world5.sendMessage("\xA74\xA7lEl jugador " + player.nameTag + " ha sido eliminado");
-    player.teleport(finalSpawnPoints.get(player.nameTag));
+    player.teleport(
+      finalSpawnPoints.get(player.nameTag),
+      { dimension: spawnDimention.get(player.nameTag) }
+    );
     lives.set(player.nameTag, lives.get(player.nameTag) - 1);
+    deathMessage.set(player.nameTag, deathMessage.get(player.nameTag) + 1);
   } else {
     if (vidas == 1) {
       world5.sendMessage("\xA74\xA7lAl jugador " + player.nameTag + " le queda " + vidas + " vida");
@@ -3891,7 +3931,16 @@ function revive(player) {
       world5.sendMessage("\xA74\xA7lAl jugador " + player.nameTag + " le quedan " + vidas + " vidas");
     }
     lives.set(player.nameTag, lives.get(player.nameTag) - 1);
-    teleportPlayer3(player);
+    if (spawnLocation2 == "muerte") {
+      blockPvp(player);
+      player.addEffect(MinecraftEffectTypes.Resistance, 1200, { amplifier: 255, showParticles: false });
+      player.teleport(
+        finalSpawnPoints.get(player.nameTag),
+        { dimension: spawnDimention.get(player.nameTag) }
+      );
+    } else if (spawnLocation2 == "spawn") {
+      teleportPlayer3(player);
+    }
   }
 }
 function teleportPlayer3(player) {
@@ -3906,44 +3955,120 @@ function teleportPlayer3(player) {
   player.addEffect(MinecraftEffectTypes.Resistance, 160, { amplifier: 255, showParticles: false });
   player.addEffect(MinecraftEffectTypes.InstantHealth, 160, { amplifier: 255, showParticles: false });
   player.addEffect(MinecraftEffectTypes.Saturation, 160, { amplifier: 255, showParticles: false });
-  player.teleport({ x, y: 320, z });
+  player.teleport({ x, y: 320, z }, { dimension: world5.getDimension("overworld") });
+}
+function blockPvp(player) {
+  if (deathMessage == void 0)
+    deathMessage = /* @__PURE__ */ new Map();
+  if (deathMessage.get(player.nameTag) == void 0)
+    deathMessage.set(player.nameTag, 0);
+  deathMessage.set(player.nameTag, deathMessage.get(player.nameTag) + 1);
+  let before = deathMessage.get(player.nameTag);
+  controller("actionBarDisactive", [player]);
+  let subscription;
+  let livesPrev = /* @__PURE__ */ new Map();
+  let lives2 = /* @__PURE__ */ new Map();
+  world5.getAllPlayers().forEach((p) => {
+    lives2.set(p.nameTag, p.getComponent("health").currentValue);
+  });
+  subscription = world5.afterEvents.entityHurt.subscribe((event) => {
+    const damageSource = event.damageSource;
+    const hurtEntity = event.hurtEntity;
+    if (damageSource?.damagingEntity?.nameTag == player.nameTag && damageSource?.damagingEntity?.typeId === "minecraft:player" && hurtEntity?.typeId === "minecraft:player") {
+      hurtEntity.getComponent("health").setCurrentValue(livesPrev.get(hurtEntity.nameTag));
+    }
+  });
+  const resistanceTime = 60;
+  const blockPvpTime = 100;
+  system.run(() => bucle(resistanceTime, 0));
+  function bucle(resistance, blockPvp3) {
+    blockPvp3++;
+    if (blockPvp3 % 20 == 0) {
+      resistance--;
+      livesPrev = new Map(lives2);
+      world5.getAllPlayers().forEach((p) => {
+        lives2.set(p.nameTag, p.getComponent("health").currentValue);
+      });
+      if (resistance > 0) {
+        player.runCommand("/title @s actionbar Resistencia: " + resistance + " | pvp disabled: " + (blockPvpTime - blockPvp3 / 20));
+      } else {
+        player.runCommand("/title @s actionbar pvp disabled: " + (blockPvpTime - blockPvp3 / 20));
+      }
+    }
+    if (blockPvp3 < 20 * blockPvpTime && deathMessage.get(player.nameTag) == before) {
+      system.run(() => bucle(resistance, blockPvp3));
+    } else {
+      world5.afterEvents.entityHurt.unsubscribe(subscription);
+      controller("actionBarActive", [player]);
+    }
+  }
 }
 
 // scripts/timeLogic.ts
-import { system, world as world6 } from "@minecraft/server";
+import { system as system2, world as world6 } from "@minecraft/server";
 var start;
 var end;
-function timeMessage(finalSize) {
-  const currentTime = system.currentTick;
-  const players2 = world6.getAllPlayers();
-  if (currentTime - start == (end - start) / 2) {
-    world6.sendMessage("Quedan " + Math.floor((end - start) / 20 / 2 / 60) + " minutos para el final de la partida");
-    world6.sendMessage("Solo recibir\xE1n 1 barra de vida extra la gente que llegue a tiempo al centro");
-  } else if (currentTime >= end) {
+function timeMessage(SIZE, finalSize, players2, netherPlayers) {
+  const currentTime = system2.currentTick;
+  if (currentTime >= end) {
     for (let p of players2) {
       world6.sendMessage("Se ha acabado el tiempo");
     }
-    return true;
-  } else if (currentTime - start >= (end - start) * 3 / 4) {
-    for (let p of players2) {
-      let distx = Math.floor(Math.abs(p.location.x) - finalSize - 2);
-      let distz = Math.floor(Math.abs(p.location.z) - finalSize - 2);
-      if (distx > 0 && distz > 0) {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + Math.floor(Math.sqrt(distx * distx + distz * distz)) + " b");
-      } else if (distx > 0) {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia : " + distx + " b");
-      } else if (distz > 0) {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + distz + " b");
-      } else {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Dentro de la zona");
-      }
+    for (let p of netherPlayers) {
+      world6.sendMessage("Se ha acabado el tiempo");
     }
+    return true;
+  } else if (Math.floor((end - currentTime) / 20 / 60 + 1) < 21) {
+    players2.forEach((p) => {
+      p.runCommand(sendMessage(p, finalSize));
+    });
+    netherPlayers.forEach((p) => {
+      let aux = sendMessage(p, Math.floor(finalSize / 8));
+      if (Math.abs(p.location.x) * 8 > SIZE || Math.abs(p.location.z) * 8 > SIZE)
+        aux += " | Fuera del mapa";
+      else
+        aux += " | Dentro del mapa";
+      p.runCommand(aux);
+    });
   } else {
     for (let p of players2) {
       p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m ");
     }
+    for (let p of netherPlayers) {
+      if (Math.abs(p.location.x) * 8 > SIZE || Math.abs(p.location.z) * 8 > SIZE) {
+        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Fuera del mapa");
+      } else {
+        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Dentro del mapa");
+      }
+    }
   }
   return false;
+}
+function sendMessage(p, size2) {
+  let res = "";
+  let currentTime = system2.currentTick;
+  let auxX;
+  let auxZ;
+  if (p.location.x < 0)
+    auxX = 2;
+  else
+    auxX = 1;
+  if (p.location.z < 0)
+    auxZ = 2;
+  else
+    auxZ = 1;
+  let distx = Math.floor(Math.abs(p.location.x)) - size2 + auxX;
+  let distz = Math.floor(Math.abs(p.location.z)) - size2 + auxZ;
+  if (distx > 0 && distz > 0) {
+    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + Math.floor(Math.sqrt(distx * distx + distz * distz)) + " b";
+  } else if (distx > 0) {
+    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia : " + distx + " b";
+  } else if (distz > 0) {
+    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Distancia: " + distz + " b";
+  } else {
+    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime) / 20 / 60 + 1) + " m | Dentro de la zona";
+  }
+  return res;
 }
 function setTime(startTime, endTime) {
   start = startTime;
@@ -3960,44 +4085,68 @@ var BUILDDIST = 50;
 var BLOCKTYPE = "minecraft:barrier";
 var FRECUENCY = 20;
 var start2 = false;
-var stopMessages = false;
-system2.run(gameTick);
+var final = false;
+var actionbarPlayers = /* @__PURE__ */ new Map();
+system3.run(startFunction);
+system3.run(gameTick);
+function startFunction() {
+  world7.gameRules.keepInventory = true;
+  world7.gameRules.naturalRegeneration = false;
+  world7.getAllPlayers().forEach((player) => {
+    actionbarPlayers.set(player, 0);
+  });
+}
 function gameTick() {
-  if (system2.currentTick % FRECUENCY === 0 && start2) {
+  if (system3.currentTick % FRECUENCY === 0) {
     let players2 = world7.getAllPlayers();
     for (let p of players2) {
-      processPlayer(p);
+      let x = Math.floor(p.getComponent("health").currentValue);
+      p.runCommand("scoreboard players set @s vida " + x);
     }
-    if (!stopMessages) {
-      stopMessages = timeMessage(FINALSIZE);
-      if (stopMessages) {
-        size = FINALSIZE;
-        for (let p of players2) {
-          let extra = Math.abs(p.location.x) < FINALSIZE && Math.abs(p.location.z) < FINALSIZE;
+    if (start2) {
+      for (let p of players2) {
+        if (p.dimension == world7.getDimension("overworld"))
           processPlayer(p);
-          setExtraHealthBars(FINALSIZE, p, extra);
+      }
+      system3.runInterval;
+      if (!final) {
+        let playersArray = new Set(world7.getAllPlayers());
+        let netherPlayers = /* @__PURE__ */ new Set();
+        actionbarPlayers.forEach((value, key) => {
+          if (value != 0)
+            playersArray.delete(key);
+          else if (key.dimension == world7.getDimension("nether")) {
+            playersArray.delete(key);
+            netherPlayers.add(key);
+          }
+        });
+        final = timeMessage(size, FINALSIZE, playersArray, netherPlayers);
+        if (final) {
+          size = FINALSIZE;
+          for (let p of players2) {
+            setExtraHealthBars(FINALSIZE, p);
+            netherPlayers.forEach((player) => {
+              let x = Math.floor(player.location.x * 8);
+              let z = Math.floor(player.location.z * 8);
+              player.teleport({ x, y: 320, z }, { dimension: world7.getDimension("overworld") });
+              player.addEffect(MinecraftEffectTypes.Resistance, 160, { amplifier: 255, showParticles: false });
+            });
+            processPlayer(p);
+          }
         }
       }
     }
   }
-  system2.run(gameTick);
+  system3.run(gameTick);
 }
-system2.afterEvents.scriptEventReceive.subscribe((event) => {
-  world7.sendMessage("ha llegado el evento " + event.id);
-  world7.sendMessage(" ");
-  let params = event.message.split(" ");
-  switch (event.id) {
-    case "uhc:initialize":
-      setLives(world7.getAllPlayers()[0], 2);
-      break;
-  }
-});
 world7.afterEvents.entityDie.subscribe((event) => {
-  if (event.deadEntity.typeId != "minecraft:player")
+  if (event.deadEntity.typeId != "minecraft:player" || !start2)
     return;
   processPlayerDie(event);
 });
 world7.afterEvents.playerSpawn.subscribe((event) => {
+  if (!start2)
+    return;
   processPlayerSpawn(event);
 });
 world7.afterEvents.itemUse.subscribe((eventData) => {
@@ -4005,6 +4154,16 @@ world7.afterEvents.itemUse.subscribe((eventData) => {
   const item = eventData.itemStack;
   if (item.typeId == "uhc:start") {
     mainMenu(player);
+  }
+});
+system3.afterEvents.scriptEventReceive.subscribe((event) => {
+  world7.sendMessage("ha llegado el evento " + event.id);
+  world7.sendMessage(" ");
+  let params = event.message.split(" ");
+  switch (event.id) {
+    case "uhc:start":
+      startMessage();
+      break;
   }
 });
 function windowController(event, params) {
@@ -4017,7 +4176,7 @@ function windowController(event, params) {
       break;
   }
 }
-function controller(event, params) {
+async function controller(event, params) {
   let spawnPoints2;
   switch (event) {
     case "randomChooseTeams":
@@ -4036,17 +4195,43 @@ function controller(event, params) {
       setPlayers();
       break;
     case "confirm":
-      spawnPoints2 = spreadPlayers(size);
-      initialize(params[0]);
-      const startTime = system2.currentTick - system2.currentTick % 20;
+      await startMessage();
+      const startTime = system3.currentTick - system3.currentTick % 20;
       const endTime = startTime + params[1] * 60 * 20;
-      setTime(startTime, endTime);
       start2 = true;
+      startFunction();
+      spawnPoints2 = spreadPlayers(size);
+      initialize(params[0], spawnPoints2, params[2]);
+      setTime(startTime, endTime);
+      break;
+    case "actionBarActive":
+      actionbarPlayers.set(params[0], (actionbarPlayers.get(params[0]) ?? 0) - 1);
+      break;
+    case "actionBarDisactive":
+      actionbarPlayers.set(params[0], (actionbarPlayers.get(params[0]) ?? 0) + 1);
       break;
     default:
       console.log("No se ha encontrado el evento " + event);
       break;
   }
+}
+function startMessage() {
+  return new Promise((resolve) => {
+    let tiempoRestante = 10;
+    let id = system3.runInterval(() => {
+      if (tiempoRestante <= 0) {
+        world7.getDimension("overworld").runCommand("/title @a title YA!");
+        world7.getDimension("overworld").runCommand("/execute as @a at @s run playsound random.orb @s ~ ~ ~ ");
+        system3.clearRun(id);
+        resolve();
+        return;
+      } else {
+        world7.getDimension("overworld").runCommand("/execute as @a at @s run playsound note.bell @s ~ ~ ~ ");
+        world7.getDimension("overworld").runCommand("/title @a title " + tiempoRestante);
+        tiempoRestante--;
+      }
+    }, 20);
+  });
 }
 export {
   BLOCKTYPE,

@@ -44,13 +44,14 @@ function addProposer(){
 function processConfirmSelection(player:Player) {
   playersConfirmed.add(player.nameTag);
   playersNotConfirmed.delete(player.nameTag);
+  world.sendMessage(player.nameTag + " ha confirmado los ajustes");
   if (playersNotConfirmed.size == 0 && !canceled) {
     if (manualSelected) {
       controller("manualChooseTeams", [teams]);
     }
       
     windowController("teamsFormed", []);
-    world.sendMessage("§2Todos los jugadores han confirmado la configuración de la partida\n\n");
+    world.sendMessage("§2Todos los jugadores han confirmado la configuración de la partida");
   }
 }
 
