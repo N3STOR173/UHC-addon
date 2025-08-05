@@ -2,7 +2,7 @@ import { ActionFormData, ActionFormResponse, ModalFormData } from "@minecraft/se
 import { world, Player } from "@minecraft/server";
 import { windowController, controller } from "./main";
 
-let phase = 1; // 1 = team selection, 2 = game settings
+let phase = 1; // 1 = team selection, 2 = game settings, 3 = final confirmation
 let seleccionMade = false;
 let someoneChoosing = false;
 let playerChoosing:String;
@@ -45,7 +45,7 @@ function gameSettingsWindow(player:Player) {
     if (playersNotConfirmed.has(player.nameTag)) {
       confirm.button("confirmar");
     }
-    confirm.button("cancelar");
+    confirm.button("rechazar");
 
     confirm.show(player).then((response) => {
       if (response.selection == 0) { //CONFIRMAR
@@ -93,7 +93,7 @@ function gameSettingsWindow(player:Player) {
           world.getAllPlayers().forEach(p => {
             gameSettingsWindow(p);
           });
-          world.sendMessage(player.nameTag + " ha propuesto los ajustes de la partida, falta la confirmación por parte de los jugadores");
+          world.sendMessage("§9" + player.nameTag + " ha propuesto los ajustes de la partida, falta la confirmación por parte de los jugadores");
         }
 
         else {
@@ -167,6 +167,11 @@ function finalWindow(player:Player) {
       notReady.delete(player.nameTag);
       if (notReady.size == 0) {
         controller("confirm", [lifes, time, spawnLocation]);
+
+        //para dejarlo reseteado por si se reinicia la partida
+        phase = 1;
+        seleccionMade = false;
+        ready.clear();
       }
     }
   });

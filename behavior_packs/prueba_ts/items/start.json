@@ -6,9 +6,9 @@
     },
     "components": {
       "minecraft:max_stack_size": 1,
-      "minecraft:icon": "uhc:debug_test",
+      "minecraft:icon": "uhc:start_texture",
       "minecraft:display_name": {
-        "value": "Start"
+        "value": "UHC"
       }
     }
   }

@@ -3,30 +3,45 @@
   "header": {
     "description": "comportamiento para el UHC",
     "name": "UHC Behavior Pack",
-    "uuid":"ab9fd058-d544-482c-9d01-95f2ffde3cdf",
-    "version": [1, 0, 0],
-    "min_engine_version": [1, 20, 30]
-  },
-  "modules":
-    [
-      {
-        "description": "My Second Add-On!",
-          "type": "data",
-          "uuid": "26223f44-ceeb-4c78-9ecd-44bd8143c849",
-          "version": [1, 0, 0]
-      },
-      {
-        "description": "Test Scripting",
-          "type": "script",
-          "uuid": "c25072f4-4350-44f4-bcd8-6accca7a9ee7",
-          "version": [1, 0, 0],
-          "entry": "scripts/main.js"
-      }
+    "uuid": "ab9fd058-d544-482c-9d01-95f2ffde3cdf",
+    "version": [
+      1,
+      0,
+      0
     ],
+    "min_engine_version": [
+      1,
+      20,
+      30
+    ]
+  },
+  "modules": [
+    {
+      "description": "My Second Add-On!",
+      "type": "data",
+      "uuid": "26223f44-ceeb-4c78-9ecd-44bd8143c849",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "description": "Test Scripting",
+      "type": "script",
+      "uuid": "c25072f4-4350-44f4-bcd8-6accca7a9ee7",
+      "version": [
+        1,
+        0,
+        0
+      ],
+      "entry": "scripts/main.js"
+    }
+  ],
   "dependencies": [
     {
-      "module_name":"@minecraft/server",
-      "version":"1.18.0"
+      "module_name": "@minecraft/server",
+      "version": "1.13.0"
     },
     {
       "module_name": "@minecraft/server-ui",
@@ -34,7 +49,11 @@
     },
     {
       "uuid": "2d7ed858-97eb-48a0-b180-7c80d1ce9a48",
-      "version": [1, 0, 0]
+      "version": [
+        1,
+        0,
+        0
+      ]
     }
- ]
+  ]
 }

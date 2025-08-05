@@ -1,13 +1,39 @@
 import { Player, system, world } from "@minecraft/server";
 
-let start:number;
-let end:number;
+const FRECUENCY = 3; //en minutos
+const DURATION = 3; //en segundos
 
-export function timeMessage(SIZE:number, finalSize:number, players:Set<Player>, netherPlayers:Set<Player>):boolean {
+let locatorBar:boolean = false;
+let locatorBarMinutos:number =  FRECUENCY - 1;
+let locatorBarSegundos:number = 59;
+
+//separa los jugadores del overworld y del nether
+//ademas de eliminar los jugadores que tienen la actionbar ocupada
+export function initialMessageLogic(size:number, finalSize:number):boolean {
+  let playersArray: Set<Player> = new Set(world.getAllPlayers());
+  let netherPlayers: Set<Player> = new Set();
+  world.getAllPlayers().forEach(player => {
+    let value = world.getDynamicProperty("actionbar:"+player.nameTag) as number;
+    if (value != 0)
+      playersArray.delete(player);
+    else if (player.dimension == world.getDimension("nether")) {
+      playersArray.delete(player);
+      netherPlayers.add(player);
+    }
+  });
+  return actionBarMessages(size, finalSize, playersArray, netherPlayers);
+}
+
+function actionBarMessages(SIZE:number, finalSize:number, players:Set<Player>, netherPlayers:Set<Player>):boolean {
   const currentTime = system.currentTick;
+
+  /////////////////////////aviso 20 minutos//////////////////////////////////
+  if (Math.floor(((world.getDynamicProperty("end") as number) - currentTime)/20+1) == 20*60) {
+    world.sendMessage("Quedan 20 minutos, recordad estar al final de la partida en el centro del mapa");
+  }
   
   /////////////////////////fin de la partida/////////////////////////////////
-  if (currentTime >= end) {
+  if (currentTime >= (world.getDynamicProperty("end") as number)) {
     for (let p of players) {
       world.sendMessage("Se ha acabado el tiempo");
     }
@@ -18,42 +44,83 @@ export function timeMessage(SIZE:number, finalSize:number, players:Set<Player>, 
   }
 
   /////////////////////////aviso distancia al centro/////////////////////////
-  else if ( Math.floor((end - currentTime)/20/60+1) < 21) { 
+  else if ( Math.floor(((world.getDynamicProperty("end") as number) - currentTime)/20/60+1) < 21) { 
     players.forEach(p => {
-      p.runCommand(sendMessage(p, finalSize));
+      p.runCommand("/title @s actionbar " + timeMessage() + " | " + distMessage(p, finalSize));
     });
     netherPlayers.forEach(p => {
-      let aux = sendMessage(p, Math.floor(finalSize/8));
+      let aux = timeMessage() + " | " + distMessage(p, Math.floor(finalSize/8));
       if (Math.abs(p.location.x) * 8 > SIZE || Math.abs(p.location.z) * 8 > SIZE)
         aux += " | Fuera del mapa";
-      else
-        aux += " | Dentro del mapa";
-      p.runCommand(aux);
+      p.runCommand("/title @s actionbar "+aux);
     });
   }
 
-  /////////////////////////aviso de tiempo restante/////////////////////////
+  /////////////////////////aviso de tiempo restante//////////////////////////
   else {
     for (let p of players) {
-      p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m ");
+      p.runCommand("/title @s actionbar " + timeMessage());
     }
     for (let p of netherPlayers) {
       if (Math.abs(p.location.x) * 8 > SIZE || Math.abs(p.location.z) * 8 > SIZE) {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m"
+        p.runCommand("/title @s actionbar " + timeMessage()
         + " | Fuera del mapa");
       }
       else {
-        p.runCommand("/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m"
-        + " | Dentro del mapa");
+        p.runCommand("/title @s actionbar " + timeMessage());
       }
     }
   }
   return false;
 }
 
-function sendMessage (p:Player, size:Number):string {
+//mensajes en la batalla final y logica de la locator bar
+export function finalMessages() {
+  let currentTime =  Math.floor(system.currentTick - ((world.getDynamicProperty("end") as number)))
+  let minutos = Math.floor(currentTime/20/60);
+  let segundos = Math.floor((currentTime/20)%60);
+
+  for (let p of world.getAllPlayers()) {
+    if (locatorBar) {
+      p.runCommand("/title @s actionbar Tiempo: " + adjustTimeFormat(minutos, segundos)
+      + " | Locator Bar: " + adjustTimeFormat(locatorBarMinutos, locatorBarSegundos));
+    }
+    else { 
+      p.runCommand("/title @s actionbar Tiempo: " + adjustTimeFormat(minutos, segundos)
+      + " | Locator Bar: " + adjustTimeFormat(locatorBarMinutos, locatorBarSegundos));
+    }
+  }
+
+  locatorBarSegundos -= 1;
+  if (locatorBar && locatorBarSegundos < 0) {
+    world.sendMessage("Locator Bar desactivada");
+    world.getDimension("overworld").runCommand("/gamerule locatorbar false");
+    locatorBarMinutos = FRECUENCY;
+    locatorBarSegundos = 0;
+    locatorBar = false;
+  }
+  else if (locatorBarMinutos == 0 && locatorBarSegundos < 0) {
+    world.sendMessage("Locator Bar activada");
+    world.getDimension("overworld").runCommand("/gamerule locatorbar true");
+    locatorBarSegundos = DURATION;
+    locatorBar = true;
+  }
+  else if (locatorBarSegundos < 0) {
+    locatorBarSegundos = 59;
+    locatorBarMinutos -= 1;
+  }
+}
+
+export function initializeTime(params:any[]) {
+  const startTime = system.currentTick - (system.currentTick % 20);
+  const endTime = startTime + (params[1] * 60 * 20);
+  world.setDynamicProperty("end", endTime);
+  locatorBarMinutos =  FRECUENCY - 1;
+  locatorBarSegundos = 59;
+}
+
+function distMessage (p:Player, size:Number):string {
   let res:string = "";
-  let currentTime = system.currentTick;
   
   let auxX;let auxZ;
   if (p.location.x < 0) auxX = 2; else auxX = 1;
@@ -62,29 +129,33 @@ function sendMessage (p:Player, size:Number):string {
   let distz = Math.floor(Math.abs(p.location.z)) - (size as number)+auxZ;
   
   if (distx > 0 && distz > 0) { //calculo de la diagonal
-    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m "
-      + "| Distancia: " + Math.floor(Math.sqrt(distx*distx + distz*distz)) + " b"
+    res = "Distancia: " + Math.floor(Math.sqrt(distx*distx + distz*distz)) + " b"
   }
 
   else if (distx > 0) { //calculo distancia x
-    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m "
-    + "| Distancia : " + distx + " b";
+    res = "Distancia : " + distx + " b";
   }
 
   else if (distz > 0) { //calculo distancia z
-    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m "
-    + "| Distancia: " + distz + " b";
+    res = "Distancia: " + distz + " b";
   }
 
   else {
-    res = "/title @s actionbar Tiempo: " + Math.floor((end - currentTime)/20/60+1) + " m "
-    + "| Dentro de la zona"
+    res = "Dentro de la zona"
   }
 
   return res;
 }
 
-export function setTime(startTime:number, endTime:number) {
-  start = startTime;
-  end = endTime;
+function timeMessage ():string {
+  let currentTime = system.currentTick;
+  let minutos = Math.floor(((world.getDynamicProperty("end") as number) - currentTime)/1200);
+  let segundos = Math.floor(((world.getDynamicProperty("end") as number) - currentTime)/20 % 60);
+
+  return "Tiempo: " + adjustTimeFormat(minutos, segundos);
+}
+
+function adjustTimeFormat(minutos:number, segundos:number):string {
+  if (minutos < 1) return (segundos + " s");
+  else return (minutos + " m " +  segundos + " s");
 }

@@ -52,6 +52,11 @@ function processConfirmSelection(player:Player) {
       
     windowController("teamsFormed", []);
     world.sendMessage("§2Todos los jugadores han confirmado la configuración de la partida");
+
+    //para reiniciarlo por si se reinicia la partida
+    seleccionMade = false;
+    manualSelected = false;
+    playersConfirmed.clear();
   }
 }
 
@@ -62,7 +67,7 @@ function processCancelation(player:Player) {
   playersConfirmed.clear();
   canceled = true;
   concurrentAux++;
-  world.sendMessage("§4" + player.nameTag + " ha rechazado la configuración de los equipos propueta");
+  world.sendMessage("§4" + player.nameTag + " ha rechazado la configuración de los equipos propuesta");
 }
 
 //Crea la vetana de confirmacion y procesa las respuestas
@@ -95,7 +100,7 @@ function confirmationWindow(player:Player){
     }
   }
   //se pone el boton de cancelar en cualquier caso
-  window.button("Cancelar");
+  window.button("rechazar");
 
   const aux = concurrentAux;
   //se muestra la ventana de confirmacion
@@ -130,7 +135,7 @@ function seleccionConfirmed(player:Player) {
   world.getAllPlayers().forEach(p => {
     playersNotConfirmed.add(p.nameTag);
   });
-  world.sendMessage(player.nameTag + " ha propuesto la configuración de la partida, falta la confirmación por parte de los jugadores");
+  world.sendMessage("§9" + player.nameTag + " ha propuesto la configuración de la partida, falta la confirmación por parte de los jugadores");
 }
 
 //Funcion que comprueba si en mitad de la seleccion han cancelado la configuracion

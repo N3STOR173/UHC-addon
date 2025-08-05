@@ -5,15 +5,28 @@ npm run local-deploy -- --watch
 
 M0r1sh1ma4563w
 
+Dynamic properties main.ts:
+start: boolean
+initialized: boolean
+final: boolean
+
+Dynamic properties timeLogic.ts:
+end: number                 
+
+Dynamic properties extraLivesLogic.ts:
+lives:<nombre del jugador>: number 
+
+Dynamic properties timeLogic.ts:
+actionbar:<nombre del jugador>: number
 */
 
-import { world, system, Player, EntityHealthComponent } from "@minecraft/server";
+import { world, system, Player, EntityHealthComponent, GameMode } from "@minecraft/server";
 import { processPlayer } from "./wallLogic";
-import { startRanDomChoosePlayers, startRandomChooseTeams, setPlayers, createFakePlayers, spreadPlayers, startManual } from "./teamsLogic";
-import { startWindow, debugSelectionWindow } from "./teamsWindows";
+import { startRanDomChoosePlayers, startRandomChooseTeams, setPlayers, spreadPlayers, startManual } from "./teamsLogic";
+import { startWindow } from "./teamsWindows";
 import { mainMenu, teamsFormed } from "./mainMenuWindows";
-import { initialize, setLives, processPlayerDie, processPlayerSpawn, setExtraHealthBars, blockPvp } from "./extraLivesLogic";
-import { timeMessage, setTime } from "./timeLogic";
+import { initialize, processPlayerDie, processPlayerSpawn, setExtraHealthBars } from "./extraLivesLogic";
+import { finalMessages, initializeTime, initialMessageLogic } from "./timeLogic";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 
 //Configuracion del muro:
@@ -28,110 +41,93 @@ export const BLOCKTYPE = "minecraft:barrier";           //material del muro
 const FRECUENCY = 20;                                   //frecuencia con la que se comprueba si hay que hacer el muro
 //==========================================================================================================================
 
-//Variables de control:
-//==========================================================================================================================
-let start = false;                                                      //marca si ha empezado la partida o no
-let final = false;                                                      //marca si se ha llegado al final de la partida o no
-let actionbarPlayers:Map<Player, number> = new Map<Player, number>();   //los jugadores que se les quiere enviar otro mensaje por la actionbar
-//==========================================================================================================================
-
 //llamada inicial
-system.run(startFunction);
-system.run(gameTick);
+system.run(initializeWorld);
 
 //funcion para inicializar el mundo
-function startFunction(){
-  world.gameRules.keepInventory = true;
-  world.gameRules.naturalRegeneration = false;
-  world.getAllPlayers().forEach(player => {
-    actionbarPlayers.set(player, 0);
-  });
+function initializeWorld() {
+  if (!world.getDynamicProperty("initialized")) {
+    world.setDynamicProperty("initialized", true);
+    world.setDynamicProperty("final", false);
+    world.gameRules.keepInventory = true;
+    world.gameRules.naturalRegeneration = false;
+    world.gameRules.showCoordinates = true;
+    world.gameRules.doImmediateRespawn = true;
+    world.getDimension("overworld").runCommand("/gamerule locatorbar false");
+    world.getDimension("overworld").runCommand("/scoreboard objectives add vida dummy §c❤");
+    world.getDimension("overworld").runCommand("/scoreboard objectives setdisplay list vida");
+    world.getDimension("overworld").runCommand("/scoreboard objectives setdisplay belowname vida");
+  }
 }
 
 //bucle principal
-function gameTick() {
-  if (system.currentTick % FRECUENCY === 0) {
+system.runInterval(() => {
+  
+  //siempre, se actualiza la vida de los jugadores
+  let players = world.getAllPlayers();
+  for (let p of players) {
+    let x = Math.floor((p.getComponent("health") as EntityHealthComponent).currentValue);
+    p.runCommand("scoreboard players set @s vida " +  x);
+  }
 
-    let players = world.getAllPlayers();
+  //si la partida ha empezado
+  if (world.getDynamicProperty("start")) { 
+
+    //construccion del muro
     for (let p of players) {
-      let x = Math.floor((p.getComponent("health") as EntityHealthComponent).currentValue);
-      p.runCommand("scoreboard players set @s vida " +  x);
+      if (p.dimension == world.getDimension("overworld"))
+        processPlayer(p);
     }
 
-    if (start) {
-      //construccion del muro
-      for (let p of players) {
-       if (p.dimension == world.getDimension("overworld"))
-          processPlayer(p);
-      }
+    if (!world.getDynamicProperty("final")){
 
-      system.runInterval
+      //una sola llamada a timemessages dandoles el array de los jugadores con la actionbar ocupada
+      world.setDynamicProperty("final", initialMessageLogic(size, FINALSIZE));
 
-      //mensajes de tiempo
-      if (!final){
-        //para mostrar solo el mensaje de tiempo a los que no se les esté mostrando otro mensaje
-        let playersArray: Set<Player> = new Set(world.getAllPlayers());
-        let netherPlayers: Set<Player> = new Set();
-        actionbarPlayers.forEach( (value,key) => {
-          if (value != 0)
-            playersArray.delete(key);
-          else if (key.dimension == world.getDimension("nether")) {
-            playersArray.delete(key);
-            netherPlayers.add(key);
-          }
-        });
-        final = timeMessage(size, FINALSIZE, playersArray, netherPlayers);
-
-        //se llega al final de la partida
-        if (final) {
-          size = FINALSIZE;
-          for (let p of players) {
-            setExtraHealthBars(FINALSIZE, p);
-            netherPlayers.forEach((player) => {
+      //se llega al final de la partida
+      if (world.getDynamicProperty("final")) {
+        size = FINALSIZE;
+        for (let p of players) {
+          setExtraHealthBars(FINALSIZE, p);
+          world.getAllPlayers().forEach( player => {
+            if (player.dimension == world.getDimension("nether")) {
               let x = Math.floor(player.location.x * 8);
               let z = Math.floor(player.location.z * 8);
               player.teleport({x:x, y:320, z:z}, {dimension: world.getDimension("overworld")});
               player.addEffect(MinecraftEffectTypes.Resistance, 160, { amplifier: 255, showParticles: false });
-            });
-            processPlayer(p);
-          }
+            }
+          });
+          processPlayer(p);
         }
       }
     }
 
-    //comprobacion de victoria
-    /*let aux = 0;
-    let ganador;
-    for (let p of players) {
-      if (p.getGameMode() == GameMode.survival) {
-        aux++;
-        ganador = p.nameTag;
-      }
+    //al final de la partida
+    else {
+      finalMessages();
     }
-    if (aux == 1) {
-      players[0].runCommand("/title @a title ¡" + ganador + " ha ganado!");
-      start = false;
-    }
-    else if (aux == 0) {
-      players[0].runCommand("/title @a title ¡Empate!");
-      start = false;
-    }*/
   }
-  system.run(gameTick);
-}
+}, FRECUENCY);
 
 //==========================================================================================================================
 
 //actionListener de los eventos de muerte
 world.afterEvents.entityDie.subscribe((event) => {
   //blockPvp(event.deadEntity as Player);
-  if (event.deadEntity.typeId != "minecraft:player" || !start) return;
+  if (event.deadEntity.typeId != "minecraft:player" || !world.getDynamicProperty("start")) return;
   processPlayerDie(event);
 });
 
 //actionListener de los eventos de spawn
 world.afterEvents.playerSpawn.subscribe((event) => {
-  if (!start) return;
+  if (!world.getDynamicProperty("start")) {
+    if (event.initialSpawn) {
+      event.player.runCommand("/give @s uhc:start");
+      event.player.runCommand("/effect @s resistance infinite 255 true");
+      event.player.setGameMode(GameMode.adventure);
+    }
+    return;
+  }
   processPlayerSpawn(event);
 });
 
@@ -140,36 +136,35 @@ world.afterEvents.itemUse.subscribe((eventData) => {
   const player = eventData.source;
   const item = eventData.itemStack;
   if (item.typeId == "uhc:start") {
-    mainMenu(player);
+    if (!world.getDynamicProperty("start")) {
+      mainMenu(player);
+    }
+    else {
+      player.sendMessage("La partida ya ha comenzado");
+    }
   }
 })
 
-//actionListener de los eventos de los scripts (desuso)
+//actionListener de los eventos de los scripts (debug)
 system.afterEvents.scriptEventReceive.subscribe((event) => {
   world.sendMessage("ha llegado el evento " + event.id);
   world.sendMessage(" ");
   let params:string[] = event.message.split(" ");
 
   switch (event.id) {
+    case "uhc:restart":
+      world.setDynamicProperty("start", false);
+    break;
     case "uhc:start":
       startMessage();
-    break;  }
+    break;  
+    case "uhc:ids":
+      world.getDynamicPropertyIds().forEach(id => {
+        world.sendMessage("Dynamic property: " + id + " = " + world.getDynamicProperty(id));
+      });
+    break;
+  }
 }); 
-
-//comentada la anterior version
-/*
-world.afterEvents.itemUse.subscribe((eventData) => {
-  const player = eventData.source;
-  const item = eventData.itemStack;
-  if (item.typeId == "uhc:start") {
-    startWindow(player);
-  }
-
-  if (item.typeId == "uhc:debug") {
-    debugSelectionWindow(player);
-  }
-})
-*/
 
 //==========================================================================================================================
 
@@ -191,7 +186,7 @@ export function windowController (event:String, params:any[]) {
 //controlador de eventos llamados desde teamWindows y uno desde mainMenuWindows
 //conecta las ventanas con la logica de seleccion de equipos
 export async function controller (event:String, params:any[]) {
-  let spawnPoints:Map<String,{x:number, z:number}>
+  let spawnPoints:Map<String,{x:number, y:number, z:number}>
   switch (event) {
     //eventos que forman los equipos
     case "randomChooseTeams":
@@ -204,10 +199,7 @@ export async function controller (event:String, params:any[]) {
       startManual(params);
       break;
 
-    //jugadores o jugadores falsos para debug
-    case "createFakePlayers":
-      createFakePlayers(params);
-      break;
+    //jugadores
     case "setPlayers":
       setPlayers();
       break;
@@ -215,22 +207,27 @@ export async function controller (event:String, params:any[]) {
     //evento para comenzar la partida (mainMenuWindows)
     case "confirm":
       await startMessage();
+      
+      spawnPoints = spreadPlayers(size); //teamsLogic.ts
+      initialize(params, spawnPoints); //extraLivesLogic.ts
+      initializeTime(params); //timeLogic.ts
 
-      const startTime = system.currentTick - (system.currentTick % 20);
-      const endTime = startTime + (params[1] * 60 * 20);
-      start = true;
-      startFunction();
-      spawnPoints = spreadPlayers(size);
-      initialize(params[0], spawnPoints, params[2]);
-      setTime(startTime, endTime);
+      world.getAllPlayers().forEach(player => {
+        world.setDynamicProperty("actionbar:"+player.nameTag, 0);
+      });
+
+      world.getDimension("overworld").runCommand("/execute as @a at @s run playsound random.orb @s ~ ~ ~ ");
+      world.setDynamicProperty("start", true);
+      size = 1500;
+      world.setDynamicProperty("final", false);
       break;
 
     //eventos para gestionar los mensajes de la actionbar
     case "actionBarActive":
-      actionbarPlayers.set(params[0], (actionbarPlayers.get(params[0]) ?? 0) - 1);
+      world.setDynamicProperty("actionbar:"+(params[0] as Player).nameTag, world.getDynamicProperty("actionbar:"+(params[0] as Player).nameTag) as number - 1);
       break;
     case "actionBarDisactive":
-      actionbarPlayers.set(params[0], (actionbarPlayers.get(params[0]) ?? 0) + 1);
+      world.setDynamicProperty("actionbar:"+(params[0] as Player).nameTag, world.getDynamicProperty("actionbar:"+(params[0] as Player).nameTag) as number + 1);
       break;
 
     //para comprobar errores
@@ -246,7 +243,6 @@ function startMessage():Promise<void> {
     let id = system.runInterval(() => {
       if (tiempoRestante <= 0) {
         world.getDimension("overworld").runCommand("/title @a title YA!");
-        world.getDimension("overworld").runCommand("/execute as @a at @s run playsound random.orb @s ~ ~ ~ ");
         system.clearRun(id);
         resolve();
         return;

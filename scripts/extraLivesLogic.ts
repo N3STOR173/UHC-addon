@@ -2,12 +2,10 @@ import { world, Player, GameMode, Effect, EntityDieAfterEvent, EntityInventoryCo
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 import { controller } from "./main";
 
-let lives:Map<String,number>;
-let spawnPoints:Map<String,{x:number, z:number}>;
-let finalSpawnPoints:Map<String,{x:number, y:number, z:number}>;
-let spawnDimention:Map<String,Dimension>;
-let spawnLocation:string;
-let deathMessage:Map<String, number>;
+let finalSpawnPoints:Map<String,{x:number, y:number, z:number}>; //necesario persistencia
+let spawnDimention:Map<String,Dimension>; //necesario persistencia
+let spawnLocation:string; //necesario persistencia
+let deathMessage:Map<String, number>; //para mostrar el mensaje despues de reaparecer
 
 export function processPlayerDie(event:EntityDieAfterEvent) {
   const cords:Vector3 = {x:event.deadEntity.location.x, y:event.deadEntity.location.y, z:event.deadEntity.location.z};
@@ -48,30 +46,59 @@ export function processPlayerDie(event:EntityDieAfterEvent) {
 
 export function processPlayerSpawn(event:PlayerSpawnAfterEvent) { 
   if (!event.initialSpawn) {
-    revive(event.player);
+    const player = event.player;
+    let vidas = world.getDynamicProperty("lives:"+player.nameTag);
+  
+    if (vidas == 0) {
+      player.setGameMode(GameMode.spectator);
+      world.sendMessage("§4§lEl jugador " + player.nameTag + " ha sido eliminado");
+      player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number}, 
+        {dimension: spawnDimention.get(player.nameTag)});
+      world.setDynamicProperty("lives:"+player.nameTag, world.getDynamicProperty("lives:"+player.nameTag) as number - 1);
+      deathMessage.set(player.nameTag, deathMessage.get(player.nameTag) as number + 1);
+    }
+    else {
+      //mensajes
+      if (vidas == 1) {
+        world.sendMessage("§4§lAl jugador " + player.nameTag + " le queda " + vidas + " vida");
+      }
+      else {
+        world.sendMessage("§4§lAl jugador " + player.nameTag + " le quedan " + vidas + " vidas");
+      }
+      world.setDynamicProperty("lives:"+player.nameTag, world.getDynamicProperty("lives:"+player.nameTag) as number - 1);
+    
+      //logica
+      if (spawnLocation == "muerte"){
+        blockPvp(player)
+        player.addEffect(MinecraftEffectTypes.Resistance, 1200, { amplifier: 255, showParticles: false });
+        player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number}, 
+        {dimension: spawnDimention.get(player.nameTag)});
+      }
+      else if (spawnLocation == "spawn"){
+        teleportPlayer(player);
+      }
+    }
   }
 }
 
-export function initialize (lifes:number, spawnPointsAux:Map<String,{x:number, z:number}>, spawn:string) {
-  spawnLocation = spawn;
+export function initialize (params:any[], spawnPointsAux:Map<String,{x:number, y:number, z:number}>) {
+  spawnLocation = params[2];
   if (spawnLocation == "muerte"){
-    spawnPoints = new Map<String,{x:number, z:number}>();
+    finalSpawnPoints = new Map<String,{x:number, y:number, z:number}>();
   }
   else if (spawnLocation == "spawn"){
-    spawnPoints = spawnPointsAux;
+    finalSpawnPoints = spawnPointsAux;
   };
   spawnDimention = new Map<String,Dimension>();
-  finalSpawnPoints = new Map<String,{x:number, y:number, z:number}>();
-  lives = new Map<String,number>();
   deathMessage = new Map<String,number>();
   world.getAllPlayers().forEach((player) => {
-    lives.set(player.nameTag, lifes - 1);
+    world.setDynamicProperty("lives:"+player.nameTag, params[0] - 1);
     deathMessage.set(player.nameTag, 0);
   });
 }
 
 export function setLives(player:Player, x:number) {
-  lives.set(player.nameTag, x);
+  world.setDynamicProperty("lives:"+player.nameTag, x);
 }
 
 export function setExtraHealthBars(finalSize:number, player:Player) {
@@ -83,7 +110,7 @@ export function setExtraHealthBars(finalSize:number, player:Player) {
   let distz = Math.floor(Math.abs(player.location.z)) - finalSize+auxZ;
   let extra:boolean = (distx < 1 && distz < 1 && player.dimension == world.getDimension("overworld"));
 
-  let aux = lives.get(player.nameTag);
+  let aux:number = world.getDynamicProperty("lives:"+player.nameTag) as number;
   world.sendMessage("aux: " + aux);
   if (aux != undefined && aux > -1) {
     if (extra) {
@@ -94,12 +121,12 @@ export function setExtraHealthBars(finalSize:number, player:Player) {
       player.runCommandAsync("effect @s health_boost infinite "  + (aux * 5 - 1) + " true");
       player.runCommandAsync("effect @s instant_health " + (aux * 5) + " 0 true");
     }
-    lives.set(player.nameTag, 0);
+    world.setDynamicProperty("lives:"+player.nameTag, 0);
   }
 }
 
 function checkLives(player:Player):boolean {
-  let vidas = lives.get(player.nameTag)
+  let vidas = world.getDynamicProperty("lives:"+player.nameTag) as number;
   if (vidas == 0) {
     return false;
   }
@@ -108,43 +135,9 @@ function checkLives(player:Player):boolean {
   }
 }
 
-function revive(player:Player) {
-  let vidas = lives.get(player.nameTag);
-  
-  if (vidas == 0) {
-    player.setGameMode(GameMode.spectator);
-    world.sendMessage("§4§lEl jugador " + player.nameTag + " ha sido eliminado");
-    player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number}, 
-      {dimension: spawnDimention.get(player.nameTag)});
-    lives.set(player.nameTag, lives.get(player.nameTag) as number - 1);
-    deathMessage.set(player.nameTag, deathMessage.get(player.nameTag) as number + 1);
-  }
-  else {
-    //mensajes
-    if (vidas == 1) {
-      world.sendMessage("§4§lAl jugador " + player.nameTag + " le queda " + vidas + " vida");
-    }
-    else {
-      world.sendMessage("§4§lAl jugador " + player.nameTag + " le quedan " + vidas + " vidas");
-    }
-    lives.set(player.nameTag, lives.get(player.nameTag) as number - 1);
-   
-    //logica
-    if (spawnLocation == "muerte"){
-      blockPvp(player)
-      player.addEffect(MinecraftEffectTypes.Resistance, 1200, { amplifier: 255, showParticles: false });
-      player.teleport(finalSpawnPoints.get(player.nameTag) as {x:number, y:number, z:number}, 
-      {dimension: spawnDimention.get(player.nameTag)});
-    }
-    else if (spawnLocation == "spawn"){
-      teleportPlayer(player);
-    }
-  }
-}
-
 function teleportPlayer(player: Player) {
   let x:number = 0, z:number = 0;
-  let spawnPoint = spawnPoints.get(player.nameTag);
+  let spawnPoint = finalSpawnPoints.get(player.nameTag);
   x = spawnPoint?.x as number;
   z = spawnPoint?.z as number;
 
@@ -159,7 +152,7 @@ function teleportPlayer(player: Player) {
   player.teleport({x:x, y:320, z:z}, {dimension: world.getDimension("overworld")});
 }
 
-export function blockPvp(player: Player) {
+function blockPvp(player: Player) {
 
   //quitar despues
   if (deathMessage == undefined)

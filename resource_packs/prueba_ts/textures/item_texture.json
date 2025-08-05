@@ -3,6 +3,9 @@
   "texture_data": {
     "uhc:debug_test": {
       "textures": "textures/items/debug_test"
+    },
+    "uhc:start_texture": {
+      "textures": "textures/items/start"
     }
   }
 }

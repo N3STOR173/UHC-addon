@@ -1,4 +1,4 @@
-import { world, Player, Effect } from "@minecraft/server";
+import { world, Player, Effect, GameMode, ItemStack, system } from "@minecraft/server";
 import { MinecraftEffectTypes } from "@minecraft/vanilla-data";
 
 let corner: {x:number; z:number} = {x: 0, z: 0};
@@ -54,7 +54,6 @@ function nextMiddle(){
 
 //teletransporta al jugador a esas coordenas en la primera coordenada y que no sea aire
 function teleportPlayer(player: Player, x: number, z: number, playersSpawnPoint:Map<String,{x:number, z:number}>) {
-  if (player instanceof Player) {
     let effects: Effect[] = player.getEffects();
     for (let effect of effects){
       player.removeEffect(effect.typeId);
@@ -64,13 +63,17 @@ function teleportPlayer(player: Player, x: number, z: number, playersSpawnPoint:
     player.addEffect(MinecraftEffectTypes.Saturation, 160, { amplifier: 255, showParticles: false });
     player.runCommand("clear @s");
     player.teleport({x:x, y:320, z:z}, {dimension: world.getDimension("overworld")});
+    player.setGameMode(GameMode.survival);
 
     playersSpawnPoint.set(player.nameTag, {x:x, z:z}); //guarda el spawn del jugador
-  }
-  else {
-    let fake = player as fakePlayer;
-    fake.teleport(x, z);
-  }
+
+    const id = system.runInterval(() => {
+      if (world.getDimension("overworld").getBlock({x, y:62, z})?.typeId === "minecraft:water") {
+        const inventoryComp = player.getComponent("inventory") as any;
+        inventoryComp.container.addItem(new ItemStack("minecraft:oak_boat", 1));
+      }
+      system.clearRun(id);
+    }, 160);
 }
 
 //establece los equipos que han decidido los jugadores
@@ -162,9 +165,9 @@ function makeGroupsRandomChoosePlayers(groupSize:number){
 
 ////////////////////////////////////////////////////////////////
 
-export function spreadPlayers(size:number) : Map<String,{x:number, z:number}> {
+export function spreadPlayers(size:number) : Map<String,{x:number, y:number, z:number}> {
 
-  let playersSpawnPoint:Map<String,{x:number, z:number}> = new Map<String,{x:number, z:number}>();
+  let playersSpawnPoint:Map<String,{x:number, y:number, z:number}> = new Map<String,{x:number, y:number, z:number}>();
   firstCorner(size); //selecciona la primera esquina
   firstMiddle(size); //selecciona el primer centro
   world.setTimeOfDay(0);
@@ -226,24 +229,4 @@ export function startManual(params:any[]){
 
 export function setPlayers(){
   players = world.getAllPlayers();
-}
-
-class fakePlayer {
-  name: string;
-  constructor(name:string) {
-    this.name = name;
-  }
-  teleport (x:number, z:number) {
-    world.sendMessage(this.name + " a " + x + " " + z);
-  }
-};
-
-export function createFakePlayers(params:any[]){
-  let i:number = params[0];
-  let fakePlayers:fakePlayer[] = []; //array de jugadores falsos
-  for (let j = 0; j < i; j++){
-    let p = new fakePlayer("jugador" + (j+1));
-    fakePlayers.push(p);
-  }
-  players = fakePlayers;
 }
